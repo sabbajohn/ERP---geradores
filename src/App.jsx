@@ -12,6 +12,7 @@ import TechnicianCalendar from './pages/TechnicianCalendar';
 import TechnicianAttendances from './pages/TechnicianAttendances';
 import AttendanceDetails from './pages/AttendanceDetails';
 import ScheduleMaintenance from './pages/ScheduleMaintenance';
+import Technicians from './pages/Technicians';
 import { AuthProvider } from './context/AuthContext';
 
 function AppContent() {
@@ -41,6 +42,7 @@ function AppContent() {
           <Route path="/maintenance/schedule" element={<ScheduleMaintenance />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/technicians" element={<Technicians />} />
           <Route path="/tecnico" element={<TechnicianCalendar />} />
           <Route path="/tecnico/atendimentos" element={<TechnicianAttendances />} />
           <Route path="/tecnico/atendimentos/:id" element={<AttendanceDetails />} />

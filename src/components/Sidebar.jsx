@@ -8,7 +8,7 @@ import {
   FaTools,
   FaChartBar,
   FaBell,
-  FaCogs
+  FaUserCog
 } from 'react-icons/fa';
 
 function Sidebar() {
@@ -49,6 +49,12 @@ function Sidebar() {
               <FaBell /> <span>Notificações</span>
             </NavLink>
           </li>
+          <li>
+            <NavLink to="/technicians">
+              <FaUserCog /> <span>Técnicos</span>
+            </NavLink>
+          </li>
+
 
         </ul>
       </nav>
