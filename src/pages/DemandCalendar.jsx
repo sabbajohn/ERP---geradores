@@ -73,28 +73,41 @@ function CalendarioManutencoes() {
             if (response.data.result) {
                 const formatados = response.data.result.map((m) => {
                     const isoString = m.maintenanceDate?.iso || "";
-                    // Ajusta a data para sempre ser no meio do dia, evitando fuso para o dia anterior
-                    const dataInicio = isoString
-                        ? moment(isoString).set({ hour: 12, minute: 0, second: 0 }).toDate()
-                        : new Date();
+                    const startTime = m.startTime || "12:00"; // Horário padrão caso não exista
+                    const endTime = m.endTime || "13:00"; // Horário padrão caso não exista
 
-                    const nomeGerador = m.generatorId?.name || "Sem Gerador";
-                    const nomeTecnico = m.technicianId?.name || "Sem Técnico";
-                    const nomeCliente = m.generatorId?.customerId?.name || "Sem Cliente";
+                    // Criar uma data fixa sem que o fuso altere o dia
+                    const dataBase = moment.utc(isoString).startOf('day'); // Mantém a data original
+
+                    // Definir horário de início corretamente
+                    const dataInicio = dataBase.clone().set({
+                        hour: parseInt(startTime.split(":")[0], 10),
+                        minute: parseInt(startTime.split(":")[1], 10),
+                        second: 0
+                    }).toDate();
+
+                    // Definir horário de término corretamente
+                    const dataFim = dataBase.clone().set({
+                        hour: parseInt(endTime.split(":")[0], 10),
+                        minute: parseInt(endTime.split(":")[1], 10),
+                        second: 0
+                    }).toDate();
+
+                    console.log("ISO String:", isoString);
+                    console.log("Data Início Ajustada:", dataInicio);
 
                     return {
                         id: m.objectId,
-                        title: `${nomeGerador} - ${nomeTecnico}`,
+                        title: `${m.generatorId?.name || "Sem Gerador"} - ${m.technicianId?.name || "Sem Técnico"}`,
                         start: dataInicio,
-                        end: dataInicio,
-                        generatorName: nomeGerador,
-                        technicianName: nomeTecnico,
-                        clientName: nomeCliente,
+                        end: dataFim,
                         startTime: m.startTime || "",
                         endTime: m.endTime || "",
                         status: m.status || "Agendada"
                     };
                 });
+
+
                 setEventos(formatados);
             }
         } catch (error) {
