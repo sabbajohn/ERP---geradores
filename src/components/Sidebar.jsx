@@ -8,19 +8,21 @@ import {
   FaTools,
   FaChartBar,
   FaBell,
-  FaUserCog
+  FaUserCog,
+  FaCalendarAlt,
+  FaBoxes
 } from 'react-icons/fa';
 
 function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <FaBolt /> Geradores De Qualidade
+        <FaBolt /> DSG Locações
       </div>
       <nav>
         <ul className="sidebar-menu">
           <li>
-            <NavLink to="/">
+            <NavLink to="/dashboard" exact>
               <FaHome /> <span>Dashboard</span>
             </NavLink>
           </li>
@@ -40,6 +42,11 @@ function Sidebar() {
             </NavLink>
           </li>
           <li>
+            <NavLink to="/calendar">
+              <FaCalendarAlt /> <span>Calendário</span>
+            </NavLink>
+          </li>
+          <li>
             <NavLink to="/reports">
               <FaChartBar /> <span>Relatórios</span>
             </NavLink>
@@ -54,8 +61,9 @@ function Sidebar() {
               <FaUserCog /> <span>Técnicos</span>
             </NavLink>
           </li>
-
-
+          <li><NavLink to="/inventory">
+            <FaBoxes /> <span>Estoque</span>
+          </NavLink></li>
         </ul>
       </nav>
     </aside>

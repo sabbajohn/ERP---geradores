@@ -1,7 +1,6 @@
-import React from 'react';
-import { Line } from 'react-chartjs-2';
-import { Bar } from 'react-chartjs-2';
-
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { Line, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,9 +10,10 @@ import {
   BarElement,
   Title,
   Tooltip,
-  Legend
-} from 'chart.js';
-import { FaBolt, FaShieldAlt, FaTools, FaFileContract } from 'react-icons/fa';
+  Legend,
+} from "chart.js";
+import { FaBolt, FaShieldAlt, FaTools, FaFileContract } from "react-icons/fa";
+import { Button } from "@mui/material";
 
 ChartJS.register(
   CategoryScale,
@@ -27,59 +27,68 @@ ChartJS.register(
 );
 
 function Dashboard() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("sessionToken");
+    localStorage.removeItem("role");
+    localStorage.removeItem("fullname");
+    navigate("/login");
+  };
+
   const stats = [
-    { title: 'Geradores Vendidos', value: '156', Icon: FaBolt, color: 'blue' },
-    { title: 'Garantias a Vencer', value: '8', Icon: FaShieldAlt, color: 'yellow' },
-    { title: 'Manutenções Realizadas', value: '342', Icon: FaTools, color: 'green' },
-    { title: 'Contratos Ativos', value: '89', Icon: FaFileContract, color: 'purple' }
+    { title: "Geradores Vendidos", value: "156", Icon: FaBolt, color: "blue" },
+    { title: "Garantias a Vencer", value: "8", Icon: FaShieldAlt, color: "yellow" },
+    { title: "Manutenções Realizadas", value: "342", Icon: FaTools, color: "green" },
+    { title: "Contratos Ativos", value: "89", Icon: FaFileContract, color: "purple" },
   ];
 
   const maintenanceList = [
     {
-      client: 'Cliente 1',
-      generator: 'Gerador #1001',
-      date: '23/03/2024',
-      type: 'Preventiva'
+      client: "Cliente 1",
+      generator: "Gerador #1001",
+      date: "23/03/2024",
+      type: "Preventiva",
     },
     {
-      client: 'Cliente 2',
-      generator: 'Gerador #1002',
-      date: '23/03/2024',
-      type: 'Preventiva'
-    }
+      client: "Cliente 2",
+      generator: "Gerador #1002",
+      date: "23/03/2024",
+      type: "Preventiva",
+    },
   ];
 
   const warrantyList = [
     {
-      client: 'Cliente 1',
-      generator: 'Gerador #2001',
-      date: '15/04/2024',
-      daysRemaining: '30 dias restantes'
+      client: "Cliente 1",
+      generator: "Gerador #2001",
+      date: "15/04/2024",
+      daysRemaining: "30 dias restantes",
     },
     {
-      client: 'Cliente 2',
-      generator: 'Gerador #2002',
-      date: '15/04/2024',
-      daysRemaining: '30 dias restantes'
-    }
+      client: "Cliente 2",
+      generator: "Gerador #2002",
+      date: "15/04/2024",
+      daysRemaining: "30 dias restantes",
+    },
   ];
 
   const chartData = {
-    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
+    labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"],
     datasets: [
       {
-        label: 'Vendas',
+        label: "Vendas",
         data: [4, 3, 5, 6, 4, 7],
-        borderColor: '#2563eb',
-        backgroundColor: '#2563eb',
+        borderColor: "#2563eb",
+        backgroundColor: "#2563eb",
       },
       {
-        label: 'Manutenções',
+        label: "Manutenções",
         data: [6, 4, 8, 5, 7, 9],
-        borderColor: '#059669',
-        backgroundColor: '#059669',
-      }
-    ]
+        borderColor: "#059669",
+        backgroundColor: "#059669",
+      },
+    ],
   };
 
   const chartOptions = {
@@ -89,26 +98,34 @@ function Dashboard() {
       y: {
         beginAtZero: true,
         grid: {
-          drawBorder: false
-        }
+          drawBorder: false,
+        },
       },
       x: {
         grid: {
-          display: false
-        }
-      }
+          display: false,
+        },
+      },
     },
     plugins: {
       legend: {
-        position: 'bottom'
-      }
-    }
+        position: "bottom",
+      },
+    },
   };
 
   return (
     <div>
       <div className="header">
         <h1>Dashboard</h1>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={handleLogout}
+          sx={{ position: "absolute", top: 20, right: 20 }}
+        >
+          Logout
+        </Button>
       </div>
 
       <div className="dashboard-grid">
@@ -127,9 +144,8 @@ function Dashboard() {
 
       <div className="chart-container">
         <h2 className="chart-title">Desempenho Mensal</h2>
-        <div style={{ height: '300px' }}>
+        <div style={{ height: "300px" }}>
           <Bar data={chartData} options={chartOptions} />
-
         </div>
       </div>
 
@@ -142,9 +158,7 @@ function Dashboard() {
                 <h3>{item.client}</h3>
                 <p>{item.generator}</p>
               </div>
-              <div className="item-status status-preventive">
-                {item.type}
-              </div>
+              <div className="item-status status-preventive">{item.type}</div>
             </div>
           ))}
         </div>
@@ -157,9 +171,7 @@ function Dashboard() {
                 <h3>{item.client}</h3>
                 <p>{item.generator}</p>
               </div>
-              <div className="item-status days-remaining">
-                {item.daysRemaining}
-              </div>
+              <div className="item-status days-remaining">{item.daysRemaining}</div>
             </div>
           ))}
         </div>

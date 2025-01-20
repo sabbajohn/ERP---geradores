@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Typography,
   Button,
+  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -11,43 +12,272 @@ import {
   TableRow,
   Paper,
   Box,
-  Chip
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import InfoIcon from '@mui/icons-material/Info';
-import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+  TextField,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Chip,
+  Tooltip
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import api from "../services/api";
 
 function Maintenance() {
-  const [maintenanceRecords] = useState([
-    {
-      id: 1,
-      generatorId: 'GEN001',
-      date: '2024-02-15',
-      type: 'Preventiva',
-      description: 'Troca de óleo e filtros',
-      technician: 'João Silva',
-      status: 'Agendada'
-    },
-    {
-      id: 2,
-      generatorId: 'GEN002',
-      date: '2024-02-10',
-      type: 'Corretiva',
-      description: 'Substituição de peças do motor',
-      technician: 'Maria Santos',
-      status: 'Concluída'
-    }
-  ]);
+  const [maintenances, setMaintenances] = useState([]);
+  const [generators, setGenerators] = useState([]);
+  const [technicians, setTechnicians] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [editingMaintenance, setEditingMaintenance] = useState(null);
 
-  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    generatorId: "",
+    technicianId: "",
+    maintenanceDate: "",
+    startTime: "",
+    endTime: "",
+    status: "Agendada"
+  });
 
-  const handleScheduleMaintenance = () => {
-    navigate('/maintenance/schedule');
+  // Converte "HH:MM" em minutos
+  const timeStringToMinutes = (timeStr) => {
+    const [h, m] = timeStr.split(":").map(Number);
+    return h * 60 + m;
   };
 
-  const handleViewDetails = (id) => {
-    navigate(`/maintenance/details/${id}`);
+  // Busca manutenções
+  const fetchMaintenances = async () => {
+    try {
+      const response = await api.post(
+        "/functions/getMaintenances",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
+
+      if (response.data.result) {
+        const formatted = response.data.result.map((m) => {
+          const isoString = m.maintenanceDate?.iso || "";
+          const justDate = isoString.split("T")[0];
+          return {
+            objectId: m.objectId,
+            generatorId: m.generatorId?.objectId || "",
+            generatorName: m.generatorId?.name || "N/A",
+            technicianId: m.technicianId?.objectId || "",
+            technicianName: m.technicianId?.name || "N/A",
+            maintenanceDate: justDate,
+            startTime: m.startTime || "",
+            endTime: m.endTime || "",
+            status: m.status,
+          };
+        });
+        setMaintenances(formatted);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar manutenções:", error.message);
+    }
+  };
+
+  // Busca geradores
+  const fetchGenerators = async () => {
+    try {
+      const response = await api.post(
+        "/functions/getAllGenerators",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
+
+      if (response.data.result) {
+        setGenerators(response.data.result);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar geradores:", error.message);
+    }
+  };
+
+  // Busca técnicos
+  const fetchTechnicians = async () => {
+    try {
+      const response = await api.post(
+        "/functions/getAllTechnicians",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
+
+      if (response.data.result) {
+        setTechnicians(response.data.result);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar técnicos:", error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchMaintenances();
+    fetchGenerators();
+    fetchTechnicians();
+  }, []);
+
+  // Abre modal (criação ou edição)
+  const handleOpen = (maintenance = null) => {
+    if (maintenance) {
+      setEditingMaintenance(maintenance);
+      setFormData({
+        generatorId: maintenance.generatorId || "",
+        technicianId: maintenance.technicianId || "",
+        maintenanceDate: maintenance.maintenanceDate || "",
+        startTime: maintenance.startTime || "",
+        endTime: maintenance.endTime || "",
+        status: maintenance.status || "Agendada",
+      });
+    } else {
+      setEditingMaintenance(null);
+      setFormData({
+        generatorId: "",
+        technicianId: "",
+        maintenanceDate: "",
+        startTime: "",
+        endTime: "",
+        status: "Agendada",
+      });
+    }
+    setOpen(true);
+  };
+
+  // Fecha modal
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  // Cria/Atualiza Manutenção. Se criar nova, gera OS
+  const handleSave = async () => {
+    try {
+      if (!formData.startTime || !formData.endTime) {
+        alert("Informe horário de início e término.");
+        return;
+      }
+      const newStartMin = timeStringToMinutes(formData.startTime);
+      const newEndMin = timeStringToMinutes(formData.endTime);
+      if (newStartMin >= newEndMin) {
+        alert("Horário de início deve ser menor que o horário de término.");
+        return;
+      }
+
+      // Verifica sobreposição
+      const sameDay = maintenances.filter((m) =>
+        m.technicianId === formData.technicianId &&
+        m.maintenanceDate === formData.maintenanceDate &&
+        m.objectId !== editingMaintenance?.objectId
+      );
+
+      for (const m of sameDay) {
+        if (m.status === "Concluída" || m.status === "Cancelada") continue;
+        const existStart = timeStringToMinutes(m.startTime);
+        const existEnd = timeStringToMinutes(m.endTime);
+        const overlap = newStartMin < existEnd && newEndMin > existStart;
+        if (overlap) {
+          alert("Este técnico já possui manutenção neste horário!");
+          return;
+        }
+      }
+
+      const maintenancePayload = {
+        generatorId: {
+          __type: "Pointer",
+          className: "Generators",
+          objectId: formData.generatorId,
+        },
+        technicianId: {
+          __type: "Pointer",
+          className: "Technicians",
+          objectId: formData.technicianId,
+        },
+        maintenanceDate: {
+          __type: "Date",
+          iso: new Date(formData.maintenanceDate).toISOString(),
+        },
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        status: formData.status,
+      };
+
+      let newMaintenanceId = null;
+
+      if (editingMaintenance) {
+        await api.post(
+          "/functions/updateMaintenance",
+          { maintenanceId: editingMaintenance.objectId, ...maintenancePayload },
+          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+        );
+      } else {
+        const respCreate = await api.post(
+          "/functions/createMaintenance",
+          maintenancePayload,
+          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+        );
+        newMaintenanceId = respCreate.data?.result?.objectId;
+      }
+
+      // Se for nova manutenção, cria Ordem
+      if (!editingMaintenance && newMaintenanceId) {
+        await api.post(
+          "/functions/createOrder",
+          {
+            maintenanceId: {
+              __type: "Pointer",
+              className: "Maintenances",
+              objectId: newMaintenanceId,
+            },
+            generatorId: {
+              __type: "Pointer",
+              className: "Generators",
+              objectId: formData.generatorId,
+            },
+            technicianId: {
+              __type: "Pointer",
+              className: "Technicians",
+              objectId: formData.technicianId,
+            },
+            status: "pending",
+            description: "OS gerada automaticamente",
+            date: new Date(formData.maintenanceDate).toISOString(),
+          },
+          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+        );
+      }
+
+      fetchMaintenances();
+      handleClose();
+    } catch (error) {
+      console.error("Erro ao salvar manutenção:", error.message);
+    }
+  };
+
+  // Exclui manutenção
+  const handleDelete = async (maintenanceId) => {
+    try {
+      await api.post(
+        "/functions/deleteMaintenance",
+        { maintenanceId },
+        { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+      );
+      fetchMaintenances();
+    } catch (error) {
+      console.error("Erro ao deletar manutenção:", error.message);
+    }
   };
 
   return (
@@ -58,7 +288,7 @@ function Maintenance() {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={handleScheduleMaintenance}
+          onClick={() => handleOpen()}
         >
           Agendar Manutenção
         </Button>
@@ -69,43 +299,151 @@ function Maintenance() {
           <TableHead>
             <TableRow>
               <TableCell><strong>Gerador</strong></TableCell>
-              <TableCell><strong>Data</strong></TableCell>
-              <TableCell><strong>Tipo</strong></TableCell>
-              <TableCell><strong>Descrição</strong></TableCell>
               <TableCell><strong>Técnico</strong></TableCell>
+              <TableCell><strong>Data</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
               <TableCell align="center"><strong>Ações</strong></TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
-            {maintenanceRecords.map((record) => (
-              <TableRow key={record.id}>
-                <TableCell>{record.generatorId}</TableCell>
-                <TableCell>{format(new Date(record.date), 'dd/MM/yyyy')}</TableCell>
-                <TableCell>{record.type}</TableCell>
-                <TableCell>{record.description}</TableCell>
-                <TableCell>{record.technician}</TableCell>
+            {maintenances.map((m) => (
+              <TableRow key={m.objectId}>
+                <TableCell>{m.generatorName}</TableCell>
+                <TableCell>{m.technicianName}</TableCell>
+                <TableCell>
+                  <Tooltip
+                    title={
+                      <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
+                        Horário: {m.startTime} - {m.endTime}
+                      </span>
+                    }
+                  >
+                    <span>
+                      {m.maintenanceDate
+                        ? m.maintenanceDate.split("-").reverse().join("/")
+                        : "Sem Data"}
+                    </span>
+                  </Tooltip>
+                </TableCell>
                 <TableCell>
                   <Chip
-                    label={record.status}
-                    color={record.status === 'Concluída' ? 'success' : 'warning'}
+                    label={m.status}
+                    color={
+                      m.status === "Concluída" || m.status === "completed"
+                        ? "success"
+                        : "warning"
+                    }
                   />
                 </TableCell>
                 <TableCell align="center">
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<InfoIcon />}
-                    onClick={() => handleViewDetails(record.id)}
-                  >
-                    Detalhes
-                  </Button>
+                  <IconButton onClick={() => handleOpen(m)}>
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleDelete(m.objectId)}>
+                    <DeleteIcon />
+                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          {editingMaintenance ? "Editar Manutenção" : "Nova Manutenção"}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            select
+            label="Gerador"
+            value={formData.generatorId}
+            onChange={(e) => setFormData({ ...formData, generatorId: e.target.value })}
+            margin="dense"
+            SelectProps={{ native: true }}
+          >
+            <option value="">Selecione um gerador</option>
+            {generators.map((gen) => (
+              <option key={gen.objectId} value={gen.objectId}>
+                {gen.name}
+              </option>
+            ))}
+          </TextField>
+
+          <TextField
+            fullWidth
+            select
+            label="Técnico"
+            value={formData.technicianId}
+            onChange={(e) => setFormData({ ...formData, technicianId: e.target.value })}
+            margin="dense"
+            SelectProps={{ native: true }}
+          >
+            <option value="">Selecione um técnico</option>
+            {technicians.map((tech) => (
+              <option key={tech.objectId} value={tech.objectId}>
+                {tech.name}
+              </option>
+            ))}
+          </TextField>
+
+          <TextField
+            fullWidth
+            label="Data da Manutenção"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            value={formData.maintenanceDate}
+            onChange={(e) => setFormData({ ...formData, maintenanceDate: e.target.value })}
+            margin="dense"
+          />
+
+          <TextField
+            fullWidth
+            label="Horário de Início"
+            type="time"
+            InputLabelProps={{ shrink: true }}
+            value={formData.startTime}
+            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+            margin="dense"
+          />
+
+          <TextField
+            fullWidth
+            label="Horário de Término"
+            type="time"
+            InputLabelProps={{ shrink: true }}
+            value={formData.endTime}
+            onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+            margin="dense"
+          />
+
+          <TextField
+            fullWidth
+            select
+            label="Status"
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            margin="dense"
+            SelectProps={{ native: true }}
+          >
+            <option value="Agendada">Agendada</option>
+            <option value="Em Andamento">Em Andamento</option>
+            <option value="Concluída">Concluída</option>
+            <option value="Cancelada">Cancelada</option>
+          </TextField>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleClose} color="secondary">
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} color="primary">
+            {editingMaintenance ? "Salvar" : "Adicionar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

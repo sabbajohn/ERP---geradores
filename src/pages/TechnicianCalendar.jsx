@@ -1,140 +1,194 @@
-import React, { useState } from 'react';
-import { Container, Typography, Box, Grid, Card, CardContent, Button } from '@mui/material';
-import { DateCalendar, LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { useNavigate } from 'react-router-dom';
-import { Bar } from 'react-chartjs-2';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import Calendar from "react-calendar"; // react-calendar (mobile-friendly)
+import "react-calendar/dist/Calendar.css";
+
 import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-} from 'chart.js';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+    Box,
+    Card,
+    Typography,
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    TextField,
+    DialogActions,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel
+} from "@mui/material";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+import api from "../services/api";
 
-function TechnicianCalendar() {
-    const [selectedDate, setSelectedDate] = useState(new Date());
+const TechnicianCalendar = () => {
     const navigate = useNavigate();
 
-    const handleDateChange = (date) => {
-        setSelectedDate(date);
-        navigate(`/tecnico/atendimentos?date=${format(date, 'dd/MM/yyyy')}`);
-    };
+    // Exemplo de ID do técnico logado (você obtém do seu auth)
+    const [technicianId] = useState(() => {
+        const id = localStorage.getItem("currentTechId") || "";
+        console.log("Technician ID obtido:", id);
+        return id;
+    });
 
-    const attendances = [
-        { date: '13/01/2025', count: 3 },
-        { date: '14/01/2025', count: 5 },
-        { date: '15/01/2025', count: 2 },
-        { date: '16/01/2025', count: 4 },
-        { date: '17/01/2025', count: 1 }
-    ];
 
-    const chartData = {
-        labels: attendances.map((item) => item.date),
-        datasets: [
-            {
-                label: 'Atendimentos Realizados',
-                data: attendances.map((item) => item.count),
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }
-        ]
-    };
+    const [date, setDate] = useState(new Date());
+    const [maintenances, setMaintenances] = useState([]);
+    const [openModal, setOpenModal] = useState(false);
 
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false, // Permite ajustar a altura conforme a largura
-        plugins: {
-            legend: {
-                position: 'top',
-                labels: {
-                    font: {
-                        size: 10 // Reduz o tamanho da fonte da legenda
-                    }
-                }
-            },
-            title: {
-                display: true,
-                text: 'Histórico de Atendimentos',
-                font: {
-                    size: 16 // Reduz o tamanho do título em telas menores
-                }
+    // Estado para novo cadastro (ex.: gerador ou cliente) - opcional
+    const [newEntry, setNewEntry] = useState({
+        type: "generator",
+        name: "",
+        client: ""
+    });
+
+
+    useEffect(() => {
+        fetchMaintenancesByTechnician();
+    }, []);
+
+    const fetchMaintenancesByTechnician = async () => {
+        try {
+            const response = await api.post(
+                "/functions/getMaintenancesByTech",
+                { technicianId },
+                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+            );
+            if (response.data.result) {
+                setMaintenances(response.data.result);
             }
-        },
-        layout: {
-            padding: {
-                top: 10,
-                bottom: 10
-            }
+        } catch (error) {
+            console.error("Erro ao buscar manutenções do técnico:", error.message);
         }
     };
 
-    const dailyAttendances = [
-        { id: 1, client: 'Empresa ABC', generator: 'GEN001', status: 'Pendente' },
-        { id: 2, client: 'Empresa XYZ', generator: 'GEN002', status: 'Concluído' }
-    ];
 
-    const handleViewDetails = (id) => {
-        navigate(`/tecnico/atendimentos/${id}`);
+    // Clica num dia específico do calendário
+    const handleDateClick = (value) => {
+        const selectedDate = value.toISOString().split("T")[0]; // YYYY-MM-DD
+        navigate(`/agenda/${selectedDate}`);
+    };
+
+    // Modal: abrir
+    const handleOpenModal = () => setOpenModal(true);
+
+    // Modal: fechar
+    const handleCloseModal = () => {
+        setOpenModal(false);
+        setNewEntry({ type: "generator", name: "", client: "" });
+    };
+
+    // Modal: salvar
+    const handleSaveEntry = () => {
+        handleCloseModal();
+    };
+
+    // Indica eventos por dia no calendário
+    const tileContent = ({ date: dayDate, view }) => {
+        if (view === "month") {
+            // Filtra manutenções do technician
+            const dayString = dayDate.toISOString().split("T")[0];
+            const count = maintenances.filter(
+                (m) => m.maintenanceDate.iso.split("T")[0] === dayString
+            ).length;
+            if (count > 0) {
+                return (
+                    <Box sx={{ display: "flex", justifyContent: "center", gap: "2px" }}>
+                        {Array.from({ length: count }).map((_, i) => (
+                            <Box
+                                key={i}
+                                sx={{
+                                    width: "5px",
+                                    height: "5px",
+                                    backgroundColor: "#03a9f4",
+                                    borderRadius: "50%"
+                                }}
+                            />
+                        ))}
+                    </Box>
+                );
+            }
+        }
+        return null;
     };
 
     return (
-        <Container maxWidth="md">
-            <Box mt={5} textAlign="center">
-                <Typography variant="h4" gutterBottom>Agenda de Atendimentos</Typography>
-                <LocalizationProvider dateAdapter={AdapterDateFns} locale={ptBR}>
-                    <DateCalendar
-                        value={selectedDate}
-                        onChange={handleDateChange}
-                    />
-                </LocalizationProvider>
-            </Box>
-
-            <Box mt={5}>
-                <Typography variant="h5" gutterBottom>Atendimentos do Dia</Typography>
-                <Grid container spacing={3}>
-                    {dailyAttendances.map((att) => (
-                        <Grid item xs={12} sm={6} key={att.id}>
-                            <Card>
-                                <CardContent>
-                                    <Typography variant="h6">{att.client}</Typography>
-                                    <Typography>Gerador: {att.generator}</Typography>
-                                    <Typography>Status: {att.status}</Typography>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        onClick={() => handleViewDetails(att.id)}
-                                        sx={{ mt: 2 }}
-                                    >
-                                        Ver Detalhes
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-            </Box>
-
-            <Box mt={5}>
-                <Typography variant="h5" gutterBottom>Histórico de Atendimentos</Typography>
-                <Box
-                    sx={{
-                        height: { xs: 300, sm: 400 }, // Altura variável conforme o tamanho da tela
-                        width: '100%'
-                    }}
-                >
-                    <Bar data={chartData} options={chartOptions} />
+        <Box sx={{ padding: 2 }}>
+            <Card sx={{ padding: 2, marginBottom: 2 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                        Agenda Mensal do Técnico
+                    </Typography>
+                    <Button variant="contained" color="primary" onClick={handleOpenModal}>
+                        Adicionar Cadastro
+                    </Button>
                 </Box>
-            </Box>
-        </Container>
+            </Card>
+
+            <Card sx={{ padding: 2 }}>
+                <Calendar
+                    onChange={setDate}
+                    value={date}
+                    onClickDay={handleDateClick}
+                    tileContent={tileContent}
+                    locale="pt-BR"
+                />
+            </Card>
+
+            {/* Modal para adicionar gerador ou cliente (opcional) */}
+            <Dialog open={openModal} onClose={handleCloseModal}>
+                <DialogTitle>Novo Cadastro</DialogTitle>
+                <DialogContent>
+                    <FormControl fullWidth sx={{ marginTop: 2 }}>
+                        <InputLabel>Tipo</InputLabel>
+                        <Select
+                            label="Tipo"
+                            value={newEntry.type}
+                            onChange={(e) =>
+                                setNewEntry({ ...newEntry, type: e.target.value })
+                            }
+                        >
+                            <MenuItem value="generator">Gerador</MenuItem>
+                            <MenuItem value="client">Cliente</MenuItem>
+                        </Select>
+                    </FormControl>
+
+                    <TextField
+                        fullWidth
+                        sx={{ marginTop: 2 }}
+                        label={
+                            newEntry.type === "generator"
+                                ? "Nome do Gerador"
+                                : "Nome do Cliente"
+                        }
+                        value={newEntry.name}
+                        onChange={(e) => setNewEntry({ ...newEntry, name: e.target.value })}
+                    />
+
+                    {newEntry.type === "generator" && (
+                        <TextField
+                            fullWidth
+                            sx={{ marginTop: 2 }}
+                            label="Cliente Associado"
+                            value={newEntry.client}
+                            onChange={(e) =>
+                                setNewEntry({ ...newEntry, client: e.target.value })
+                            }
+                        />
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseModal} color="secondary">
+                        Cancelar
+                    </Button>
+                    <Button onClick={handleSaveEntry} color="primary" variant="contained">
+                        Salvar
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
     );
-}
+};
 
 export default TechnicianCalendar;

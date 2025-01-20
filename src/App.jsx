@@ -1,51 +1,70 @@
-import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
-import Dashboard from './pages/Dashboard';
-import Customers from './pages/Customers';
-import Generators from './pages/Generators';
-import Maintenance from './pages/Maintenance';
-import Reports from './pages/Reports';
-import Notifications from './pages/Notifications';
-import Login from './pages/Login';
-import TechnicianCalendar from './pages/TechnicianCalendar';
-import TechnicianAttendances from './pages/TechnicianAttendances';
-import AttendanceDetails from './pages/AttendanceDetails';
-import ScheduleMaintenance from './pages/ScheduleMaintenance';
-import Technicians from './pages/Technicians';
-import { AuthProvider } from './context/AuthContext';
+import React from "react";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import Sidebar from "./components/Sidebar";
+import Dashboard from "./pages/Dashboard";
+import Customers from "./pages/Customers";
+import Generators from "./pages/Generators";
+import Maintenance from "./pages/Maintenance";
+import Reports from "./pages/Reports";
+import Notifications from "./pages/Notifications";
+import Login from "./pages/Login";
+import TechnicianCalendar from "./pages/TechnicianCalendar";
+import TechnicianAttendances from "./pages/TechnicianAttendances";
+import AttendanceDetails from "./pages/AttendanceDetails";
+import ScheduleMaintenance from "./pages/ScheduleMaintenance";
+import Technicians from "./pages/Technicians";
+import DemandCalendar from "./pages/DemandCalendar";
+import DayDetails from "./pages/DayDetails";
+import Inventory from "./pages/Inventory";
+
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem("sessionToken");
+
+  return token ? children : <Navigate to="/login" replace />;
+}
 
 function AppContent() {
   const location = useLocation();
 
   // Definir as rotas onde o Sidebar deve ser exibido
   const showSidebar = [
-    '/',
-    '/customers',
-    '/generators',
-    '/maintenance',
-    '/reports',
-    '/notifications'
+    "/dashboard",
+    "/customers",
+    "/generators",
+    "/maintenance",
+    "/reports",
+    "/notifications",
+    "/technicians",
+    "/calendar",
+    "/inventory",
   ].includes(location.pathname);
 
   return (
-    <div className={`app-container ${showSidebar ? '' : 'no-sidebar'}`}>
-      {/* Exibe o Sidebar apenas nas rotas definidas */}
+    <div className={`app-container ${showSidebar ? "" : "no-sidebar"}`}>
       {showSidebar && <Sidebar />}
       <main className="main-content">
         <Routes>
+          {/* Login acessível a todos */}
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/generators" element={<Generators />} />
-          <Route path="/maintenance" element={<Maintenance />} />
-          <Route path="/maintenance/schedule" element={<ScheduleMaintenance />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/technicians" element={<Technicians />} />
-          <Route path="/tecnico" element={<TechnicianCalendar />} />
-          <Route path="/tecnico/atendimentos" element={<TechnicianAttendances />} />
-          <Route path="/tecnico/atendimentos/:id" element={<AttendanceDetails />} />
+
+          {/* Redirecionar para login se acessar a raiz sem estar autenticado */}
+          <Route path="/" element={<Navigate to="/login" />} />
+
+          {/* Rotas protegidas */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+          <Route path="/generators" element={<ProtectedRoute><Generators /></ProtectedRoute>} />
+          <Route path="/maintenance" element={<ProtectedRoute><Maintenance /></ProtectedRoute>} />
+          <Route path="/maintenance/schedule" element={<ProtectedRoute><ScheduleMaintenance /></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+          <Route path="/technicians" element={<ProtectedRoute><Technicians /></ProtectedRoute>} />
+          <Route path="/calendar" element={<ProtectedRoute><DemandCalendar /></ProtectedRoute>} />
+          <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+          <Route path="/agenda/:selectedDate" element={<ProtectedRoute><DayDetails /></ProtectedRoute>} />
+          <Route path="/tecnico" element={<ProtectedRoute><TechnicianCalendar /></ProtectedRoute>} />
+          <Route path="/tecnico/atendimentos" element={<ProtectedRoute><TechnicianAttendances /></ProtectedRoute>} />
+          <Route path="/tecnico/atendimentos/:maintenanceId" element={<ProtectedRoute><AttendanceDetails /></ProtectedRoute>} />
         </Routes>
       </main>
     </div>
@@ -53,11 +72,7 @@ function AppContent() {
 }
 
 function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  return <AppContent />;
 }
 
 export default App;
