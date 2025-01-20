@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
-import "moment/locale/pt-br"; // Importa o locale PT-BR do moment
+import "moment/locale/pt-br";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-
 import {
     Box,
     Modal,
@@ -15,16 +14,11 @@ import {
     MenuItem,
     InputLabel
 } from "@mui/material";
-
 import api from "../services/api";
 
-// Define o local do moment para "pt-br"
 moment.locale("pt-br");
-
-// Cria o localizer para o React Big Calendar
 const localizer = momentLocalizer(moment);
 
-// Mensagens em português para o calendário
 const mensagens = {
     date: "Data",
     time: "Hora",
@@ -48,7 +42,6 @@ function CalendarioManutencoes() {
     const [eventos, setEventos] = useState([]);
     const [geradores, setGeradores] = useState([]);
     const [tecnicos, setTecnicos] = useState([]);
-
     const [modalAberto, setModalAberto] = useState(false);
     const [novoEvento, setNovoEvento] = useState({
         generatorId: "",
@@ -65,7 +58,6 @@ function CalendarioManutencoes() {
         buscarTecnicos();
     }, []);
 
-    // Busca manutenções
     const buscarManutencoes = async () => {
         try {
             const response = await api.post(
@@ -80,8 +72,11 @@ function CalendarioManutencoes() {
 
             if (response.data.result) {
                 const formatados = response.data.result.map((m) => {
-                    const dataIso = m.maintenanceDate?.iso || "";
-                    const dataInicio = dataIso ? new Date(dataIso) : new Date();
+                    const isoString = m.maintenanceDate?.iso || "";
+                    // Ajusta a data para sempre ser no meio do dia, evitando fuso para o dia anterior
+                    const dataInicio = isoString
+                        ? moment(isoString).set({ hour: 12, minute: 0, second: 0 }).toDate()
+                        : new Date();
 
                     const nomeGerador = m.generatorId?.name || "Sem Gerador";
                     const nomeTecnico = m.technicianId?.name || "Sem Técnico";
@@ -107,7 +102,6 @@ function CalendarioManutencoes() {
         }
     };
 
-    // Busca geradores
     const buscarGeradores = async () => {
         try {
             const response = await api.post(
@@ -127,7 +121,6 @@ function CalendarioManutencoes() {
         }
     };
 
-    // Busca técnicos
     const buscarTecnicos = async () => {
         try {
             const response = await api.post(
@@ -147,7 +140,6 @@ function CalendarioManutencoes() {
         }
     };
 
-    // Clicar em um dia do calendário
     const aoSelecionarDia = (infoSlot) => {
         const dataStr = moment(infoSlot.start).format("YYYY-MM-DD");
         setNovoEvento({
@@ -161,7 +153,6 @@ function CalendarioManutencoes() {
         setModalAberto(true);
     };
 
-    // Cria uma nova manutenção
     const aoEnviar = async (e) => {
         e.preventDefault();
         try {
@@ -198,17 +189,15 @@ function CalendarioManutencoes() {
         }
     };
 
-    // Fecha o modal
     const fecharModal = () => {
         setModalAberto(false);
     };
 
-    // Conteúdo do tooltip
     const textoTooltip = (evento) => {
-        return `Técnico: ${evento.technicianName}\nCliente: ${evento.clientName}\nHorário: ${evento.startTime || "?"} - ${evento.endTime || "?"}`;
+        return `Técnico: ${evento.technicianName}\nCliente: ${evento.clientName}\nHorário: ${evento.startTime || "?"
+            } - ${evento.endTime || "?"}`;
     };
 
-    // Define cores conforme status (e pequeno espaçamento)
     const coresPorStatus = {
         Agendada: ["#2196f3", "#1E88E5", "#1565C0"],
         "Em Andamento": ["#ff9800", "#F57C00", "#EF6C00"],
@@ -219,7 +208,6 @@ function CalendarioManutencoes() {
 
     const estiloEvento = (evento) => {
         const paleta = coresPorStatus[evento.status] || corPadrao;
-        // Gera índice pseudo-aleatório baseado no id
         const index = parseInt(evento.id, 36) % paleta.length;
         return {
             style: {
@@ -235,8 +223,8 @@ function CalendarioManutencoes() {
         <Box sx={{ height: "80vh", margin: "20px" }}>
             <Calendar
                 localizer={localizer}
-                culture="pt-BR"            // Define a cultura
-                messages={mensagens}      // Mensagens em português
+                culture="pt-BR"
+                messages={mensagens}
                 events={eventos}
                 startAccessor="start"
                 endAccessor="end"
