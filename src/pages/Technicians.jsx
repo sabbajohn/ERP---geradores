@@ -11,7 +11,6 @@ import {
     TableHead,
     TableRow,
     Paper,
-    Box,
     TextField,
     Dialog,
     DialogActions,
@@ -28,11 +27,17 @@ function Technicians() {
     const [technicians, setTechnicians] = useState([]);
     const [open, setOpen] = useState(false);
     const [editingTechnician, setEditingTechnician] = useState(null);
-    const [formData, setFormData] = useState({ name: "", email: "", phone: "", specialization: "", availability: true });
+    const [formData, setFormData] = useState({
+        name: "",
+        email: "",
+        phone: "",
+        specialization: "",
+        availability: true,
+        cpfCnpj: "", // Novo campo
+    });
     const [credentials, setCredentials] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [filteredTechnicians, setFilteredTechnicians] = useState([]);
-
 
     // Buscar técnicos do backend
     const fetchTechnicians = async () => {
@@ -80,10 +85,11 @@ function Technicians() {
                 phone: technician.phone,
                 specialization: technician.specialization,
                 availability: technician.availability,
+                cpfCnpj: technician.cpfCnpj || "", // Preencher o CPF/CNPJ existente
             });
         } else {
             setEditingTechnician(null);
-            setFormData({ name: "", email: "", phone: "", specialization: "", availability: true });
+            setFormData({ name: "", email: "", phone: "", specialization: "", availability: true, cpfCnpj: "" });
         }
         setOpen(true);
     };
@@ -97,10 +103,15 @@ function Technicians() {
     const handleSave = async () => {
         try {
             let response;
+            const dataToSend = {
+                ...formData,
+                cpfCnpj: formData.cpfCnpj
+            };
+
             if (editingTechnician) {
                 response = await api.post(
                     "/functions/updateTechnician",
-                    { technicianId: editingTechnician.objectId, ...formData },
+                    { technicianId: editingTechnician.objectId, ...dataToSend },
                     { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
                 );
 
@@ -115,7 +126,7 @@ function Technicians() {
             } else {
                 response = await api.post(
                     "/functions/createTechnician",
-                    formData,
+                    dataToSend, // Envia o CPF/CNPJ
                     { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
                 );
 
@@ -131,7 +142,6 @@ function Technicians() {
             console.error("Erro ao salvar técnico:", error.message);
         }
     };
-
 
     // Excluir Técnico
     const handleDelete = async (technicianId) => {
@@ -164,7 +174,6 @@ function Technicians() {
                 Novo Técnico
             </Button>
 
-
             <TableContainer component={Paper} sx={{ mt: 3 }}>
                 <Table>
                     <TableHead>
@@ -172,6 +181,7 @@ function Technicians() {
                             <TableCell><strong>Nome</strong></TableCell>
                             <TableCell><strong>Email</strong></TableCell>
                             <TableCell><strong>Telefone</strong></TableCell>
+                            <TableCell><strong>CPF/CNPJ</strong></TableCell> {/* Nova coluna */}
                             <TableCell align="center"><strong>Ações</strong></TableCell>
                         </TableRow>
                     </TableHead>
@@ -181,6 +191,7 @@ function Technicians() {
                                 <TableCell>{tech.name}</TableCell>
                                 <TableCell>{tech.email}</TableCell>
                                 <TableCell>{tech.phone}</TableCell>
+                                <TableCell>{tech.cpfCnpj}</TableCell> {/* Exibe o CPF/CNPJ */}
                                 <TableCell align="center">
                                     <IconButton onClick={() => handleOpen(tech)}><EditIcon /></IconButton>
                                     <IconButton onClick={() => handleDelete(tech.objectId)}><DeleteIcon /></IconButton>
@@ -188,7 +199,6 @@ function Technicians() {
                             </TableRow>
                         ))}
                     </TableBody>
-
                 </Table>
             </TableContainer>
 
@@ -196,9 +206,34 @@ function Technicians() {
             <Dialog open={open} onClose={handleClose}>
                 <DialogTitle>{editingTechnician ? "Editar Técnico" : "Novo Técnico"}</DialogTitle>
                 <DialogContent>
-                    <TextField fullWidth label="Nome" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} margin="dense" />
-                    <TextField fullWidth label="Email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} margin="dense" />
-                    <TextField fullWidth label="Telefone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} margin="dense" />
+                    <TextField
+                        fullWidth
+                        label="Nome"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        margin="dense"
+                    />
+                    <TextField
+                        fullWidth
+                        label="Email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        margin="dense"
+                    />
+                    <TextField
+                        fullWidth
+                        label="Telefone"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        margin="dense"
+                    />
+                    <TextField
+                        fullWidth
+                        label="CPF/CNPJ" // Novo campo
+                        value={formData.cpfCnpj}
+                        onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })}
+                        margin="dense"
+                    />
                     <TextField
                         fullWidth
                         label="Nova Senha (Opcional)"

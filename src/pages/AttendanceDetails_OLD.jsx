@@ -1,3 +1,4 @@
+
 // src/pages/AttendanceDetails.jsx
 
 import React, { useState, useEffect, useRef } from "react";
@@ -78,9 +79,10 @@ function AttendanceDetails() {
     const [signatureData, setSignatureData] = useState(null);
     const sigCanvas = useRef({});
 
-    // **Novas variáveis de estado e referência para a assinatura do cliente**
-    const [clientSignatureData, setClientSignatureData] = useState(null);
-    const clientSigCanvas = useRef({});
+    // Assinatura do Cliente
+    const [customerSignature, setCustomerSignature] = useState(null);
+    const customerSigCanvas = useRef({});
+
 
     // Novos estados para status, startTime, endTime e duration
     const [status, setStatus] = useState("");
@@ -356,56 +358,37 @@ function AttendanceDetails() {
         setFilesToUpload(files);
     };
 
-    // Salvar Relatório (chama "createMaintenanceReport")
-    const handleSaveReport = async () => {
+    // Função auxiliar para converter dataURL em File (definida apenas uma vez)
+    const dataURLtoFile = (dataurl, filename) => {
+        let arr = dataurl.split(',');
+        let mimeMatch = arr[0].match(/:(.*?);/);
+        let mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        let bstr = atob(arr[1]);
+        let n = bstr.length;
+        let u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    };
+
+    // Função para criar o relatório com partsPayload como parâmetro
+    const createReport = async (partsPayload) => {
         try {
-            // Validação básica (pode ser expandida conforme necessário)
-            if (!checkInTime) {
-                alert("Por favor, inicie o atendimento antes de salvar o relatório.");
-                return;
-            }
-            if (!checkOutTime) {
-                alert("Por favor, finalize o atendimento antes de salvar o relatório.");
-                return;
-            }
-            if (!reportDescription) {
-                alert("Por favor, descreva o atendimento realizado.");
-                return;
-            }
+            // Adicionar console.log para verificar os dados enviados
+            console.log("Enviando dados para createMaintenanceReport:", {
+                maintenanceId,
+                reportDescription,
+                mileage,
+                partsUsed: partsPayload,
+                checkInTime,
+                checkOutTime,
+                duration,
+                checklistText,
+                checklistInputsArray,
+                customerId: maintenanceInfo?.generatorId?.customerId?.objectId
+            });
 
-            // **Validação para garantir que as assinaturas foram salvas**
-            if (!signatureData) {
-                alert("Por favor, salve a assinatura do técnico antes de salvar o relatório.");
-                return;
-            }
-
-            if (!clientSignatureData) {
-                alert("Por favor, salve a assinatura do cliente antes de salvar o relatório.");
-                return;
-            }
-
-            const partsPayload = partsUsed.map((p) => ({
-                itemId: p.objectId,
-                quantity: p.usedQuantity || 1,
-            }));
-
-            // Monta o checklist de checkbox
-            const checklistText = selectedChecklist.join(", ");
-
-            // Monta o checklist de inputs
-            const checklistInputsArray = Object.entries(checklistInputs).map(
-                ([key, value]) => ({
-                    key,
-                    value,
-                })
-            );
-
-            // **Assinaturas**
-            const technicianSignatureBase64 = signatureData || "";
-            const customerSignatureBase64 = clientSignatureData || ""; // **Inclui a assinatura do cliente**
-
-            // Chama no backend
-            console.log(maintenanceInfo?.generatorId?.customerId?.objectId);
             const resp = await api.post(
                 "/functions/createMaintenanceReport",
                 {
@@ -418,8 +401,6 @@ function AttendanceDetails() {
                     duration,
                     checklistText, // itens marcados
                     checklistInputsArray, // itens digitados
-                    technicianSignature: technicianSignatureBase64, // assinatura do técnico
-                    customerSignature: customerSignatureBase64, // **assinatura do cliente**
                     customerId: maintenanceInfo?.generatorId?.customerId?.objectId
                 },
                 {
@@ -429,71 +410,193 @@ function AttendanceDetails() {
                 }
             );
 
+            console.log("Resposta de createMaintenanceReport:", resp.data);
+
             if (resp.data.result && resp.data.result.report) {
-                const reportId = resp.data.result.report.objectId;
-                // Sobe as fotos
-                for (const file of filesToUpload) {
-                    await uploadAttachment(reportId, file);
-                }
-                alert("Relatório salvo com sucesso!");
-
-                // Resetar os estados
-                setCheckInTime("");
-                setCheckOutTime("");
-                setDuration("");
-                setSelectedChecklist([]);
-                setChecklistInputs({});
-                setPartsUsed([]);
-                setReportDescription("");
-                setMileage("");
-                setSignatureData(null);
-                setClientSignatureData(null); // **Reseta a assinatura do cliente**
-                sigCanvas.current.clear();
-                clientSigCanvas.current.clear(); // **Reseta o canvas do cliente**
-
-                navigate("/tecnico");
+                return resp.data.result.report.objectId;
             } else {
+                console.warn("createMaintenanceReport retornou sem report:", resp.data);
                 alert("Falha ao criar relatório.");
+                return null;
             }
         } catch (error) {
-            console.error("Erro ao salvar relatório:", error);
+            console.error("Erro ao criar relatório:", error);
             if (error.response && error.response.data) {
-                alert(`Falha ao salvar relatório: ${error.response.data.error}`);
+                alert(`Falha ao criar relatório: ${error.response.data.error}`);
             } else {
-                alert(
-                    "Falha ao salvar relatório. Verifique os campos e tente novamente."
-                );
+                alert("Falha ao criar relatório. Verifique os campos e tente novamente.");
             }
+            return null;
+        }
+    };
+
+    // Função para fazer o upload das assinaturas
+    const uploadSignatures = async (reportId, technicianSignature, customerSignature) => {
+        try {
+            // Adicionar console.log para verificar os dados enviados
+            console.log("Enviando dados para uploadMaintenanceSignatures:", {
+                reportId,
+                technicianSignature,
+                customerSignature
+            });
+
+            await api.post(
+                "/functions/uploadMaintenanceSignatures",
+                {
+                    reportId,
+                    technicianSignature, // string Base64
+                    customerSignature, // string Base64
+                },
+                {
+                    headers: {
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
+                }
+            );
+            return true;
+        } catch (error) {
+            console.error("Erro ao fazer upload das assinaturas:", error);
+            if (error.response && error.response.data) {
+                alert(`Falha ao fazer upload das assinaturas: ${error.response.data.error}`);
+            } else {
+                alert("Falha ao fazer upload das assinaturas. Tente novamente.");
+            }
+            return false;
+        }
+    };
+
+    // Função para salvar o relatório e as assinaturas
+    const handleSaveReport = async () => {
+        try {
+            // Validações básicas
+            if (!checkInTime) {
+                alert("Por favor, inicie o atendimento antes de salvar o relatório.");
+                return;
+            }
+            if (!checkOutTime) {
+                alert("Por favor, finalize o atendimento antes de salvar o relatório.");
+                return;
+            }
+            if (!reportDescription) {
+                alert("Por favor, descreva o atendimento realizado.");
+                return;
+            }
+            if (!signatureData) {
+                alert("Por favor, forneça a assinatura do técnico.");
+                return;
+            }
+            if (!customerSignature) {
+                alert("Por favor, forneça a assinatura do cliente.");
+                return;
+            }
+
+            // Preparar os dados do relatório
+            const partsPayload = partsUsed.map((p) => ({
+                itemId: p.objectId,
+                quantity: p.usedQuantity || 1,
+            }));
+
+            // Adicionar console.log para verificar partsPayload
+            console.log("partsPayload:", partsPayload);
+
+            // Monta o checklist de checkbox
+            const checklistText = selectedChecklist.join(", ");
+
+            // Monta o checklist de inputs
+            const checklistInputsArray = Object.entries(checklistInputs).map(
+                ([key, value]) => ({
+                    key,
+                    value,
+                })
+            );
+
+            // Assinaturas
+            const technicianSignatureBase64 = signatureData.split(',')[1]; // Remover 'data:image/png;base64,'
+            const customerSignatureBase64 = customerSignature.split(',')[1]; // Remover 'data:image/png;base64,'
+
+            // Adicionar console.log para verificar as assinaturas
+            console.log("technicianSignatureBase64:", technicianSignatureBase64);
+            console.log("customerSignatureBase64:", customerSignatureBase64);
+
+            // Criar o relatório
+            const reportId = await createReport(partsPayload);
+            if (!reportId) return;
+
+            // Fazer o upload das assinaturas
+            const uploadSuccess = await uploadSignatures(reportId, technicianSignatureBase64, customerSignatureBase64);
+            if (!uploadSuccess) return;
+
+            // Fazer o upload das outras imagens
+            for (const file of filesToUpload) {
+                await uploadAttachment(reportId, file); // Presumindo que uploadAttachment está corretamente configurada
+            }
+
+            alert("Relatório e assinaturas salvos com sucesso!");
+
+            // Resetar os estados
+            setCheckInTime("");
+            setCheckOutTime("");
+            setDuration("");
+            setSelectedChecklist([]);
+            setChecklistInputs({});
+            setPartsUsed([]);
+            setReportDescription("");
+            setMileage("");
+            setSignatureData(null);
+            sigCanvas.current.clear();
+            setCustomerSignature(null);
+            customerSigCanvas.current.clear();
+
+            navigate("/tecnico");
+        } catch (error) {
+            console.error("Erro ao salvar relatório:", error);
+            alert("Falha ao salvar relatório. Verifique os campos e tente novamente.");
         }
     };
 
     const uploadAttachment = async (reportId, file) => {
-        const base64File = await fileToBase64(file);
-        await api.post(
-            "/functions/uploadMaintenanceAttachment",
-            {
-                reportId,
-                base64File,
-                fileName: file.name,
-            },
-            {
-                headers: {
-                    "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+        try {
+            const base64File = await fileToBase64(file);
+            console.log(`Uploading attachment: ${file.name}, base64 size: ${base64File.length}`);
+            await api.post(
+                "/functions/uploadMaintenanceAttachment",
+                {
+                    reportId,
+                    base64File,
+                    fileName: file.name,
                 },
-            }
-        );
+                {
+                    headers: {
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
+                }
+            );
+            console.log(`Arquivo ${file.name} anexado com sucesso ao relatório ${reportId}.`);
+        } catch (error) {
+            console.error(`Erro ao anexar arquivo ${file.name}:`, error);
+            alert(`Falha ao anexar o arquivo ${file.name}. Tente novamente.`);
+        }
     };
 
     const fileToBase64 = (file) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = () => resolve(reader.result.split(",")[1]);
+            reader.onload = () => {
+                const result = reader.result;
+                // Verificar se o resultado está no formato esperado
+                if (result.startsWith('data:image/')) {
+                    resolve(result.split(",")[1]);
+                } else {
+                    console.warn("Formato de arquivo não suportado:", file.name);
+                    reject(new Error("Formato de arquivo não suportado."));
+                }
+            };
             reader.onerror = reject;
             reader.readAsDataURL(file);
         });
     };
 
-    // Funções para a assinatura do Técnico
+    // Funções para a assinatura do técnico
     const clearSignature = () => {
         sigCanvas.current.clear();
         setSignatureData(null);
@@ -503,21 +606,23 @@ function AttendanceDetails() {
         if (!sigCanvas.current.isEmpty()) {
             const dataURL = sigCanvas.current.toDataURL("image/png");
             setSignatureData(dataURL);
+            console.log("Assinatura do técnico salva:", dataURL);
         } else {
             alert("Por favor, desenhe sua assinatura antes de salvar.");
         }
     };
 
-    // **Novas funções para a assinatura do Cliente**
-    const clearClientSignature = () => {
-        clientSigCanvas.current.clear();
-        setClientSignatureData(null);
+    // Funções para a assinatura do cliente
+    const clearCustomerSignature = () => {
+        customerSigCanvas.current.clear();
+        setCustomerSignature(null);
     };
 
-    const saveClientSignature = () => {
-        if (!clientSigCanvas.current.isEmpty()) {
-            const dataURL = clientSigCanvas.current.toDataURL("image/png");
-            setClientSignatureData(dataURL);
+    const saveCustomerSignature = () => {
+        if (!customerSigCanvas.current.isEmpty()) {
+            const dataURL = customerSigCanvas.current.toDataURL("image/png");
+            setCustomerSignature(dataURL);
+            console.log("Assinatura do cliente salva:", dataURL);
         } else {
             alert("Por favor, desenhe a assinatura do cliente antes de salvar.");
         }
@@ -588,18 +693,18 @@ function AttendanceDetails() {
                 <Typography>
                     <strong>Status:</strong> {status}
                 </Typography>
-                {status === "Em andamento" && startTime && (
+                {status === "Em andamento" && checkInTime && (
                     <Typography>
-                        <strong>Hora de Início:</strong> {new Date(startTime).toLocaleString("pt-BR")}
+                        <strong>Hora de Início:</strong> {new Date(checkInTime).toLocaleString("pt-BR")}
                     </Typography>
                 )}
-                {status === "Concluída" && endTime && (
+                {status === "Concluída" && checkOutTime && (
                     <>
                         <Typography>
-                            <strong>Hora de Início:</strong> {new Date(startTime).toLocaleString("pt-BR")}
+                            <strong>Hora de Início:</strong> {new Date(checkInTime).toLocaleString("pt-BR")}
                         </Typography>
                         <Typography>
-                            <strong>Hora de Finalização:</strong> {new Date(endTime).toLocaleString("pt-BR")}
+                            <strong>Hora de Finalização:</strong> {new Date(checkOutTime).toLocaleString("pt-BR")}
                         </Typography>
                         <Typography>
                             <strong>Duração:</strong> {calculatedDuration || duration}
@@ -816,7 +921,7 @@ function AttendanceDetails() {
                 </Box>
                 {signatureData && (
                     <Box mt={2}>
-                        <Typography variant="subtitle2">Assinatura do Técnico Salva:</Typography>
+                        <Typography variant="subtitle2">Assinatura Salva:</Typography>
                         <img
                             src={`data:image/png;base64,${signatureData}`}
                             alt="Assinatura do Técnico"
@@ -826,36 +931,43 @@ function AttendanceDetails() {
                 )}
             </Paper>
 
-            {/* **Nova seção: Assinatura do Cliente** */}
+            {/* Assinatura do Cliente */}
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Assinatura do Cliente
                 </Typography>
                 <SignatureCanvas
-                    ref={clientSigCanvas}
-                    penColor="blue" // Diferencia a cor da assinatura do cliente, se desejar
-                    canvasProps={{ width: 500, height: 200, className: "clientSigCanvas" }}
+                    ref={customerSigCanvas}
+                    penColor="black"
+                    canvasProps={{ width: 500, height: 200, className: "sigCanvas" }}
+                    onEnd={() => {
+                        const dataURL = customerSigCanvas.current.toDataURL("image/png");
+                        setCustomerSignature(dataURL);
+                        console.log("Assinatura do cliente capturada:", dataURL);
+                    }}
                 />
                 <Box mt={2} display="flex" gap={2}>
-                    <Button variant="outlined" onClick={clearClientSignature}>
+                    <Button variant="outlined" onClick={clearCustomerSignature}>
                         Limpar Assinatura
                     </Button>
-                    <Button variant="contained" onClick={saveClientSignature}>
+                    <Button
+                        variant="contained"
+                        onClick={saveCustomerSignature}
+                    >
                         Salvar Assinatura
                     </Button>
                 </Box>
-                {clientSignatureData && (
+                {customerSignature && (
                     <Box mt={2}>
                         <Typography variant="subtitle2">Assinatura do Cliente Salva:</Typography>
                         <img
-                            src={`data:image/png;base64,${clientSignatureData}`}
+                            src={`data:image/png;base64,${customerSignature}`}
                             alt="Assinatura do Cliente"
                             style={{ maxWidth: "100%", height: "auto" }}
                         />
                     </Box>
                 )}
             </Paper>
-            {/* **Fim da seção: Assinatura do Cliente** */}
 
             {/* Botão de Salvar */}
             <Box textAlign="center" mb={3}>

@@ -48,7 +48,7 @@ function Sidebar() {
           </li>
           <li>
             <NavLink to="/reports">
-              <FaChartBar /> <span>Relatórios</span>
+              <FaChartBar /> <span>Atendimentos</span>
             </NavLink>
           </li>
           <li>
