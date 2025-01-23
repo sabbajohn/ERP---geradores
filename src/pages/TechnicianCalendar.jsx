@@ -16,8 +16,13 @@ import {
     MenuItem,
     Select,
     FormControl,
-    InputLabel
+    InputLabel,
+    AppBar,
+    Toolbar,
+    IconButton,
 } from "@mui/material";
+
+import LogoutIcon from '@mui/icons-material/Logout'; // Importa o ícone de logout
 
 import api from "../services/api";
 
@@ -31,7 +36,6 @@ const TechnicianCalendar = () => {
         return id;
     });
 
-
     const [date, setDate] = useState(new Date());
     const [maintenances, setMaintenances] = useState([]);
     const [openModal, setOpenModal] = useState(false);
@@ -42,7 +46,6 @@ const TechnicianCalendar = () => {
         name: "",
         client: ""
     });
-
 
     useEffect(() => {
         fetchMaintenancesByTechnician();
@@ -63,6 +66,20 @@ const TechnicianCalendar = () => {
         }
     };
 
+    // Função para encerrar a sessão
+    const handleLogout = () => {
+        // Remove todos os itens relacionados à sessão do localStorage
+        localStorage.removeItem("sessionToken");
+        localStorage.removeItem("role");
+        localStorage.removeItem("fullname");
+        localStorage.removeItem("currentTechId");
+
+        // Opcional: limpar todo o localStorage
+        // localStorage.clear();
+
+        // Redireciona para a página de login
+        navigate("/login");
+    };
 
     // Clica num dia específico do calendário
     const handleDateClick = (value) => {
@@ -81,6 +98,7 @@ const TechnicianCalendar = () => {
 
     // Modal: salvar
     const handleSaveEntry = () => {
+        // Aqui você pode adicionar a lógica para salvar a nova entrada
         handleCloseModal();
     };
 
@@ -115,10 +133,27 @@ const TechnicianCalendar = () => {
 
     return (
         <Box sx={{ padding: 2 }}>
+            {/* Barra de Navegação com Logout */}
+            <AppBar position="static" sx={{ marginBottom: 2 }}>
+                <Toolbar>
+                    <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                        Agenda Mensal do Técnico
+                    </Typography>
+                    <IconButton
+                        edge="end"
+                        color="inherit"
+                        aria-label="logout"
+                        onClick={handleLogout}
+                    >
+                        <LogoutIcon />
+                    </IconButton>
+                </Toolbar>
+            </AppBar>
+
             <Card sx={{ padding: 2, marginBottom: 2 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                        Agenda Mensal do Técnico
+                        Manutenções Programadas
                     </Typography>
                     <Button variant="contained" color="primary" onClick={handleOpenModal}>
                         Adicionar Cadastro
