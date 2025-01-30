@@ -45,6 +45,13 @@ function Generators() {
     lastMaintenanceDate: "",
     ownershipType: "Empresa",
     isDeleted: false,
+
+    // Novos campos:
+    purchaseDate: "",
+    deliveryDate: "",
+    // Aqui armazenamos como array, mas vamos usar um TextField único para inserir
+    // as datas separadas por vírgula e converteremos para array.
+    maintenanceDates: []
   });
 
   // Estado para a barra de pesquisa
@@ -53,16 +60,20 @@ function Generators() {
   // 1) Buscar todos os clientes para mapear ID -> Nome
   const fetchCustomers = async () => {
     try {
-      const response = await api.post("/functions/getAllCustomers", {}, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      const response = await api.post(
+        "/functions/getAllCustomers",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
 
       if (response.data.result) {
         const customerMap = {};
         response.data.result.forEach((customer) => {
-          customerMap[customer.objectId] = customer.name; // Mapeia o ID para o Nome
+          customerMap[customer.objectId] = customer.name; // Mapeia ID -> Nome
         });
         setCustomersMap(customerMap);
       }
@@ -74,11 +85,15 @@ function Generators() {
   // 2) Buscar todos os geradores
   const fetchGenerators = async () => {
     try {
-      const response = await api.post("/functions/getAllGenerators", {}, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      const response = await api.post(
+        "/functions/getAllGenerators",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
 
       if (response.data.result) {
         setGenerators(response.data.result);
@@ -97,11 +112,15 @@ function Generators() {
   // Buscar lista de clientes para preencher dropdown no modal
   const fetchClients = async () => {
     try {
-      const response = await api.post("/functions/getAllCustomers", {}, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      const response = await api.post(
+        "/functions/getAllCustomers",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
       if (response.data.result) {
         setClients(response.data.result);
       }
@@ -110,7 +129,7 @@ function Generators() {
     }
   };
 
-  // Carrega novamente geradores e clientes (se desejar)  
+  // Carrega novamente geradores e clientes (se desejar)
   useEffect(() => {
     fetchGenerators();
     fetchClients();
@@ -123,18 +142,29 @@ function Generators() {
     if (generator) {
       // Edição
       setEditingGenerator(generator);
+
       setFormData({
         name: generator.name || "",
         serialNumber: generator.serialNumber || "",
         customerId: generator.customerId || "",
         location: generator.location || "",
         status: generator.status || "active",
-        // Se lastMaintenanceDate vier em ISO, ex.: "2025-01-20T00:00:00.000Z", converte p/ "YYYY-MM-DD"
         lastMaintenanceDate: generator.lastMaintenanceDate
           ? generator.lastMaintenanceDate.slice(0, 10)
           : "",
         ownershipType: generator.ownershipType || "Empresa",
         isDeleted: false,
+
+        // Novos campos:
+        purchaseDate: generator.purchaseDate
+          ? generator.purchaseDate.slice(0, 10)
+          : "",
+        deliveryDate: generator.deliveryDate
+          ? generator.deliveryDate.slice(0, 10)
+          : "",
+        maintenanceDates: generator.maintenanceDates
+          ? generator.maintenanceDates.map((date) => date.slice(0, 10))
+          : [],
       });
     } else {
       // Criação
@@ -148,6 +178,11 @@ function Generators() {
         lastMaintenanceDate: "",
         ownershipType: "Empresa",
         isDeleted: false,
+
+        // Novos campos:
+        purchaseDate: "",
+        deliveryDate: "",
+        maintenanceDates: []
       });
     }
     setOpen(true);
@@ -163,13 +198,22 @@ function Generators() {
   // --------------------------------------
   const handleSave = async () => {
     try {
+      // Precisamos transformar maintenanceDates de array -> array de datas.
+      // Mas, se estamos usando a abordagem "separar por vírgulas" no campo
+      // do form, já está certo. Vamos garantir que é array de strings:
+      const payload = {
+        ...formData,
+        // caso queira garantir remoção de espaços:
+        maintenanceDates: formData.maintenanceDates.map((d) => d.trim()),
+      };
+
       if (editingGenerator) {
         // Atualiza
         await api.post(
           "/functions/updateGenerator",
           {
             generatorId: editingGenerator.objectId,
-            ...formData,
+            ...payload,
           },
           {
             headers: {
@@ -179,16 +223,13 @@ function Generators() {
         );
       } else {
         // Cria
-        await api.post(
-          "/functions/createGenerator",
-          formData,
-          {
-            headers: {
-              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-            },
-          }
-        );
+        await api.post("/functions/createGenerator", payload, {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        });
       }
+
       fetchGenerators();
       handleClose();
     } catch (error) {
@@ -223,8 +264,6 @@ function Generators() {
   // --------------------------------------
   // Filtro de busca local
   // --------------------------------------
-  // Vamos converter o 'searchTerm' para minúsculo e comparar
-  // tanto com o 'generator.name' quanto com o 'generator.customerName'.
   const filteredGenerators = generators.filter((g) => {
     const lowerSearch = searchTerm.toLowerCase();
     const generatorName = (g.name || "").toLowerCase();
@@ -281,8 +320,18 @@ function Generators() {
               <TableCell><strong>Cliente</strong></TableCell>
               <TableCell><strong>Número de Série</strong></TableCell>
               <TableCell><strong>Localização</strong></TableCell>
-              {/* Nova coluna: Última Manutenção */}
+
+              {/* Nova coluna: Data de Compra */}
+              <TableCell><strong>Data de Compra</strong></TableCell>
+              {/* Nova coluna: Entrega Técnica */}
+              <TableCell><strong>Entrega Técnica</strong></TableCell>
+
+              {/* Nova coluna: Últ. Manutenção (já existia) */}
               <TableCell><strong>Últ. Manutenção</strong></TableCell>
+
+              {/* Nova coluna: Datas de Manutenção (array) */}
+              <TableCell><strong>Manutenções</strong></TableCell>
+
               <TableCell><strong>Status</strong></TableCell>
               <TableCell><strong>Propriedade</strong></TableCell>
               <TableCell align="center"><strong>Ações</strong></TableCell>
@@ -301,15 +350,36 @@ function Generators() {
                 <TableCell>{generator.serialNumber}</TableCell>
                 <TableCell>{generator.location}</TableCell>
 
-                {/* Exibir data de última manutenção em DD/MM/YYYY ou "Sem data" */}
+                {/* Data de Compra */}
                 <TableCell>
-                  {generator.lastMaintenanceDate ? (
-                    new Date(generator.lastMaintenanceDate).toLocaleDateString(
-                      "pt-BR"
-                    )
-                  ) : (
-                    "Sem data"
-                  )}
+                  {generator.purchaseDate
+                    ? new Date(generator.purchaseDate).toLocaleDateString("pt-BR")
+                    : "—"}
+                </TableCell>
+
+                {/* Data de Entrega Técnica */}
+                <TableCell>
+                  {generator.deliveryDate
+                    ? new Date(generator.deliveryDate).toLocaleDateString("pt-BR")
+                    : "—"}
+                </TableCell>
+
+                {/* Última Manutenção */}
+                <TableCell>
+                  {generator.lastMaintenanceDate
+                    ? new Date(generator.lastMaintenanceDate).toLocaleDateString("pt-BR")
+                    : "Sem data"}
+                </TableCell>
+
+                {/* Datas de Manutenção (array) */}
+                <TableCell>
+                  {generator.maintenanceDates && generator.maintenanceDates.length > 0
+                    ? generator.maintenanceDates
+                      .map((d) =>
+                        new Date(d).toLocaleDateString("pt-BR")
+                      )
+                      .join(", ")
+                    : "—"}
                 </TableCell>
 
                 <TableCell>
@@ -359,7 +429,7 @@ function Generators() {
             {/* Caso não encontre resultados na busca */}
             {filteredGenerators.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={11} align="center">
                   Nenhum gerador encontrado.
                 </TableCell>
               </TableRow>
@@ -415,6 +485,38 @@ function Generators() {
             <option value="inactive">Inativo</option>
           </TextField>
 
+          {/* Campo de data: Data de Compra */}
+          <TextField
+            label="Data de Compra"
+            fullWidth
+            margin="dense"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            value={formData.purchaseDate}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                purchaseDate: e.target.value,
+              })
+            }
+          />
+
+          {/* Campo de data: Data de Entrega Técnica */}
+          <TextField
+            label="Data de Entrega Técnica"
+            fullWidth
+            margin="dense"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            value={formData.deliveryDate}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                deliveryDate: e.target.value,
+              })
+            }
+          />
+
           {/* Campo de data: Última Manutenção */}
           <TextField
             label="Última Manutenção"
@@ -427,6 +529,21 @@ function Generators() {
               setFormData({
                 ...formData,
                 lastMaintenanceDate: e.target.value,
+              })
+            }
+          />
+
+          {/* Datas de Manutenção (array) - inseridas como string separada por vírgulas */}
+          <TextField
+            label="Datas de Manutenção (separadas por vírgula)"
+            fullWidth
+            margin="dense"
+            type="text"
+            value={formData.maintenanceDates.join(",")}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                maintenanceDates: e.target.value.split(","),
               })
             }
           />

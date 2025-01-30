@@ -17,7 +17,7 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <FaBolt /> DSG Locações
+        <FaBolt /> Energimaq
       </div>
       <nav>
         <ul className="sidebar-menu">
