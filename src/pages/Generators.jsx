@@ -49,8 +49,6 @@ function Generators() {
     // Novos campos:
     purchaseDate: "",
     deliveryDate: "",
-    // Aqui armazenamos como array, mas vamos usar um TextField único para inserir
-    // as datas separadas por vírgula e converteremos para array.
     maintenanceDates: []
   });
 
@@ -198,12 +196,8 @@ function Generators() {
   // --------------------------------------
   const handleSave = async () => {
     try {
-      // Precisamos transformar maintenanceDates de array -> array de datas.
-      // Mas, se estamos usando a abordagem "separar por vírgulas" no campo
-      // do form, já está certo. Vamos garantir que é array de strings:
       const payload = {
         ...formData,
-        // caso queira garantir remoção de espaços:
         maintenanceDates: formData.maintenanceDates.map((d) => d.trim()),
       };
 
@@ -326,7 +320,7 @@ function Generators() {
               {/* Nova coluna: Entrega Técnica */}
               <TableCell><strong>Entrega Técnica</strong></TableCell>
 
-              {/* Nova coluna: Últ. Manutenção (já existia) */}
+              {/* Nova coluna: Últ. Manutenção */}
               <TableCell><strong>Últ. Manutenção</strong></TableCell>
 
               {/* Nova coluna: Datas de Manutenção (array) */}
@@ -384,23 +378,15 @@ function Generators() {
 
                 <TableCell>
                   <Chip
-                    label={generator.status === "active" ? "Ativo" : "Inativo"}
-                    color={
-                      generator.status === "active"
-                        ? "success"
-                        : "error"
-                    }
+                    label={generator.status === "active" ? "Ativo" : generator.status}
+                    color={generator.status === "active" ? "success" : "error"}
                   />
                 </TableCell>
 
                 <TableCell>
                   <Chip
                     label={generator.ownershipType}
-                    color={
-                      generator.ownershipType === "Empresa"
-                        ? "primary"
-                        : "default"
-                    }
+                    color={generator.ownershipType === "Empresa" ? "primary" : "default"}
                   />
                 </TableCell>
 

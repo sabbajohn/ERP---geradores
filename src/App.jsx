@@ -16,6 +16,10 @@ import Technicians from "./pages/Technicians";
 import DemandCalendar from "./pages/DemandCalendar";
 import DayDetails from "./pages/DayDetails";
 import Inventory from "./pages/Inventory";
+import ChecklistLocacao from "./pages/ChecklistLocacao";
+
+// **Import do novo componente**:
+import ChecklistsList from "./pages/ChecklistsList";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("sessionToken");
@@ -26,7 +30,7 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   const location = useLocation();
 
-  // Definir as rotas onde o Sidebar deve ser exibido
+  // Rotas onde o Sidebar aparece
   const showSidebar = [
     "/dashboard",
     "/customers",
@@ -37,6 +41,9 @@ function AppContent() {
     "/technicians",
     "/calendar",
     "/inventory",
+    "/ChecklistLocacao",
+    // Adicionar "/checklists" se quiser exibir a sidebar nessa página
+    "/checklists",
   ].includes(location.pathname);
 
   return (
@@ -51,20 +58,136 @@ function AppContent() {
           <Route path="/" element={<Navigate to="/login" />} />
 
           {/* Rotas protegidas */}
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-          <Route path="/generators" element={<ProtectedRoute><Generators /></ProtectedRoute>} />
-          <Route path="/maintenance" element={<ProtectedRoute><Maintenance /></ProtectedRoute>} />
-          <Route path="/maintenance/schedule" element={<ProtectedRoute><ScheduleMaintenance /></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-          <Route path="/technicians" element={<ProtectedRoute><Technicians /></ProtectedRoute>} />
-          <Route path="/calendar" element={<ProtectedRoute><DemandCalendar /></ProtectedRoute>} />
-          <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-          <Route path="/agenda/:selectedDate" element={<ProtectedRoute><DayDetails /></ProtectedRoute>} />
-          <Route path="/tecnico" element={<ProtectedRoute><TechnicianCalendar /></ProtectedRoute>} />
-          <Route path="/tecnico/atendimentos" element={<ProtectedRoute><TechnicianAttendances /></ProtectedRoute>} />
-          <Route path="/tecnico/atendimentos/:maintenanceId" element={<ProtectedRoute><AttendanceDetails /></ProtectedRoute>} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <ProtectedRoute>
+                <Customers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/generators"
+            element={
+              <ProtectedRoute>
+                <Generators />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/maintenance"
+            element={
+              <ProtectedRoute>
+                <Maintenance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/maintenance/schedule"
+            element={
+              <ProtectedRoute>
+                <ScheduleMaintenance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <Notifications />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/technicians"
+            element={
+              <ProtectedRoute>
+                <Technicians />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <DemandCalendar />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <ProtectedRoute>
+                <Inventory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/agenda/:selectedDate"
+            element={
+              <ProtectedRoute>
+                <DayDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tecnico"
+            element={
+              <ProtectedRoute>
+                <TechnicianCalendar />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tecnico/atendimentos"
+            element={
+              <ProtectedRoute>
+                <TechnicianAttendances />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ChecklistLocacao"
+            element={
+              <ProtectedRoute>
+                <ChecklistLocacao />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tecnico/atendimentos/:maintenanceId"
+            element={
+              <ProtectedRoute>
+                <AttendanceDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Nova rota: /checklists */}
+          <Route
+            path="/checklists"
+            element={
+              <ProtectedRoute>
+                <ChecklistsList />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
     </div>

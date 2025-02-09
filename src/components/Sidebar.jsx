@@ -10,7 +10,8 @@ import {
   FaBell,
   FaUserCog,
   FaCalendarAlt,
-  FaBoxes
+  FaBoxes,
+  FaClipboardCheck  // Novo ícone para Checklist
 } from 'react-icons/fa';
 
 function Sidebar() {
@@ -61,9 +62,16 @@ function Sidebar() {
               <FaUserCog /> <span>Técnicos</span>
             </NavLink>
           </li>
-          <li><NavLink to="/inventory">
-            <FaBoxes /> <span>Estoque</span>
-          </NavLink></li>
+          <li>
+            <NavLink to="/inventory">
+              <FaBoxes /> <span>Estoque</span>
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/ChecklistLocacao">
+              <FaClipboardCheck /> <span>Checklist Locação</span>
+            </NavLink>
+          </li>
         </ul>
       </nav>
     </aside>
