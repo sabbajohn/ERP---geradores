@@ -490,7 +490,7 @@ function ChecklistLocacao() {
                         <Autocomplete
                             options={geradoresDisponiveis}
                             getOptionLabel={(option) =>
-                                `${option.serialNumber || option.numeroSerie || option.name} - ${option.modelo || "Sem Modelo"
+                                `${option.serialNumber || option.numeroSerie || option.name} - ${option.name || "Sem Modelo"
                                 }`
                             }
                             value={geradorSelecionado}
