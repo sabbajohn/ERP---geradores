@@ -5,7 +5,6 @@ import moment from "moment";
 import "moment/locale/pt-br";
 import api from "../services/api";
 
-
 const DayDetails = () => {
     const { selectedDate } = useParams();
     const navigate = useNavigate();
@@ -19,7 +18,7 @@ const DayDetails = () => {
         fetchDailyMaintenances(selectedDate);
     }, [selectedDate]);
 
-    // Busca manutenções só do técnico e daquela data
+    // Busca manutenções somente do técnico e daquela data
     const fetchDailyMaintenances = async (dateStr) => {
         try {
             const response = await api.post(
@@ -34,7 +33,6 @@ const DayDetails = () => {
             console.error("Erro ao buscar manutenções do dia:", error.message);
         }
     };
-
 
     return (
         <Box sx={{ padding: 2 }}>
@@ -105,15 +103,19 @@ const DayDetails = () => {
                                     ? "Cancelado"
                                     : m.status}
                         </Typography>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            sx={{ marginTop: 2 }}
-                            onClick={() => navigate(`/tecnico/atendimentos/${m.objectId}`)}
-                        >
-                            Ver Detalhes
-                        </Button>
+
+                        {/* Renderiza o botão somente se o status não for "Concluída" nem "Cancelada" */}
+                        {(m.status !== "Concluída" && m.status !== "Cancelada") && (
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                sx={{ marginTop: 2 }}
+                                onClick={() => navigate(`/tecnico/atendimentos/${m.objectId}`)}
+                            >
+                                Ver Detalhes
+                            </Button>
+                        )}
                     </Card>
                 ))
             ) : (

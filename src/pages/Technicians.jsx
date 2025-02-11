@@ -21,6 +21,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import InputMask from "react-input-mask";
 import api from "../services/api";
 
 function Technicians() {
@@ -31,9 +32,8 @@ function Technicians() {
         name: "",
         email: "",
         phone: "",
-        specialization: "",
         availability: true,
-        cpfCnpj: "", // Novo campo
+        cpfCnpj: "",
     });
     const [credentials, setCredentials] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -42,9 +42,15 @@ function Technicians() {
     // Buscar técnicos do backend
     const fetchTechnicians = async () => {
         try {
-            const response = await api.post("/functions/getAllTechnicians", {}, {
-                headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") },
-            });
+            const response = await api.post(
+                "/functions/getAllTechnicians",
+                {},
+                {
+                    headers: {
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
+                }
+            );
 
             if (response.data.result) {
                 setTechnicians(response.data.result);
@@ -60,7 +66,7 @@ function Technicians() {
 
     useEffect(() => {
         if (!searchQuery) {
-            setFilteredTechnicians(technicians); // Se não houver pesquisa, mostra todos
+            setFilteredTechnicians(technicians);
         } else {
             const query = searchQuery.toLowerCase();
             setFilteredTechnicians(
@@ -83,13 +89,18 @@ function Technicians() {
                 name: technician.name,
                 email: technician.email,
                 phone: technician.phone,
-                specialization: technician.specialization,
                 availability: technician.availability,
-                cpfCnpj: technician.cpfCnpj || "", // Preencher o CPF/CNPJ existente
+                cpfCnpj: technician.cpfCnpj || "",
             });
         } else {
             setEditingTechnician(null);
-            setFormData({ name: "", email: "", phone: "", specialization: "", availability: true, cpfCnpj: "" });
+            setFormData({
+                name: "",
+                email: "",
+                phone: "",
+                availability: true,
+                cpfCnpj: "",
+            });
         }
         setOpen(true);
     };
@@ -101,33 +112,59 @@ function Technicians() {
 
     // Salvar (Adicionar ou Editar) Técnico
     const handleSave = async () => {
+        // Verificação dos campos obrigatórios
+        if (
+            !formData.name.trim() ||
+            !formData.email.trim() ||
+            !formData.phone.trim() ||
+            !formData.cpfCnpj.trim()
+        ) {
+            alert("Por favor, preencha todos os campos obrigatórios.");
+            return;
+        }
+
         try {
             let response;
             const dataToSend = {
                 ...formData,
-                cpfCnpj: formData.cpfCnpj
+                cpfCnpj: formData.cpfCnpj,
             };
 
             if (editingTechnician) {
                 response = await api.post(
                     "/functions/updateTechnician",
                     { technicianId: editingTechnician.objectId, ...dataToSend },
-                    { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+                    {
+                        headers: {
+                            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                        },
+                    }
                 );
 
                 // Se a senha foi alterada, chama a função para atualizar a senha do usuário
                 if (formData.password) {
                     await api.post(
                         "/functions/updateTechnicianPassword",
-                        { technicianId: editingTechnician.objectId, newPassword: formData.password },
-                        { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+                        {
+                            technicianId: editingTechnician.objectId,
+                            newPassword: formData.password,
+                        },
+                        {
+                            headers: {
+                                "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                            },
+                        }
                     );
                 }
             } else {
                 response = await api.post(
                     "/functions/createTechnician",
-                    dataToSend, // Envia o CPF/CNPJ
-                    { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+                    dataToSend,
+                    {
+                        headers: {
+                            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                        },
+                    }
                 );
 
                 // Se um usuário foi criado, exibir credenciais geradas
@@ -151,7 +188,11 @@ function Technicians() {
             await api.post(
                 "/functions/softDeleteTechnician",
                 { technicianId },
-                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+                {
+                    headers: {
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
+                }
             );
             fetchTechnicians();
         } catch (error) {
@@ -170,7 +211,12 @@ function Technicians() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 sx={{ mb: 2 }}
             />
-            <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+            <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpen()}
+            >
                 Novo Técnico
             </Button>
 
@@ -178,11 +224,21 @@ function Technicians() {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell><strong>Nome</strong></TableCell>
-                            <TableCell><strong>Email</strong></TableCell>
-                            <TableCell><strong>Telefone</strong></TableCell>
-                            <TableCell><strong>CPF/CNPJ</strong></TableCell> {/* Nova coluna */}
-                            <TableCell align="center"><strong>Ações</strong></TableCell>
+                            <TableCell>
+                                <strong>Nome</strong>
+                            </TableCell>
+                            <TableCell>
+                                <strong>Email</strong>
+                            </TableCell>
+                            <TableCell>
+                                <strong>Telefone</strong>
+                            </TableCell>
+                            <TableCell>
+                                <strong>CPF/CNPJ</strong>
+                            </TableCell>
+                            <TableCell align="center">
+                                <strong>Ações</strong>
+                            </TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -191,10 +247,14 @@ function Technicians() {
                                 <TableCell>{tech.name}</TableCell>
                                 <TableCell>{tech.email}</TableCell>
                                 <TableCell>{tech.phone}</TableCell>
-                                <TableCell>{tech.cpfCnpj}</TableCell> {/* Exibe o CPF/CNPJ */}
+                                <TableCell>{tech.cpfCnpj}</TableCell>
                                 <TableCell align="center">
-                                    <IconButton onClick={() => handleOpen(tech)}><EditIcon /></IconButton>
-                                    <IconButton onClick={() => handleDelete(tech.objectId)}><DeleteIcon /></IconButton>
+                                    <IconButton onClick={() => handleOpen(tech)}>
+                                        <EditIcon />
+                                    </IconButton>
+                                    <IconButton onClick={() => handleDelete(tech.objectId)}>
+                                        <DeleteIcon />
+                                    </IconButton>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -204,56 +264,91 @@ function Technicians() {
 
             {/* Modal de criação/edição */}
             <Dialog open={open} onClose={handleClose}>
-                <DialogTitle>{editingTechnician ? "Editar Técnico" : "Novo Técnico"}</DialogTitle>
+                <DialogTitle>
+                    {editingTechnician ? "Editar Técnico" : "Novo Técnico"}
+                </DialogTitle>
                 <DialogContent>
                     <TextField
                         fullWidth
+                        required
                         label="Nome"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) =>
+                            setFormData({ ...formData, name: e.target.value })
+                        }
                         margin="dense"
                     />
                     <TextField
                         fullWidth
+                        required
                         label="Email"
                         value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                        }
                         margin="dense"
                     />
-                    <TextField
-                        fullWidth
-                        label="Telefone"
+                    <InputMask
+                        mask="(99) 99999-9999"
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        margin="dense"
-                    />
-                    <TextField
-                        fullWidth
-                        label="CPF/CNPJ" // Novo campo
+                        onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value })
+                        }
+                    >
+                        {(inputProps) => (
+                            <TextField
+                                {...inputProps}
+                                label="Telefone"
+                                fullWidth
+                                margin="dense"
+                                required
+                            />
+                        )}
+                    </InputMask>
+                    <InputMask
+                        mask="999.999.999-99"
                         value={formData.cpfCnpj}
-                        onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })}
-                        margin="dense"
-                    />
+                        onChange={(e) =>
+                            setFormData({ ...formData, cpfCnpj: e.target.value })
+                        }
+                    >
+                        {(inputProps) => (
+                            <TextField
+                                {...inputProps}
+                                label="CPF/CNPJ"
+                                fullWidth
+                                margin="dense"
+                                required
+                            />
+                        )}
+                    </InputMask>
                     <TextField
                         fullWidth
                         label="Nova Senha (Opcional)"
                         type="password"
                         value={formData.password || ""}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        onChange={(e) =>
+                            setFormData({ ...formData, password: e.target.value })
+                        }
                         margin="dense"
                     />
-
                     {credentials && (
                         <Alert severity="info">
-                            <strong>Credenciais do Técnico:</strong><br />
-                            <strong>Email:</strong> {credentials.email}<br />
+                            <strong>Credenciais do Técnico:</strong>
+                            <br />
+                            <strong>Email:</strong> {credentials.email}
+                            <br />
                             <strong>Senha:</strong> {credentials.password}
                         </Alert>
                     )}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleClose} color="secondary">Cancelar</Button>
-                    <Button onClick={handleSave} color="primary">Salvar</Button>
+                    <Button onClick={handleClose} color="secondary">
+                        Cancelar
+                    </Button>
+                    <Button onClick={handleSave} color="primary">
+                        Salvar
+                    </Button>
                 </DialogActions>
             </Dialog>
         </Container>

@@ -1,183 +1,175 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Line, Bar } from "react-chartjs-2";
+import React, { useEffect, useState } from "react";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import { FaBolt, FaShieldAlt, FaTools, FaFileContract } from "react-icons/fa";
-import { Button } from "@mui/material";
+  Container,
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Skeleton
+} from "@mui/material";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+// Ícones do Material UI
+import BatteryFullIcon from "@mui/icons-material/BatteryFull";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import ConstructionIcon from "@mui/icons-material/Construction";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import BusinessIcon from "@mui/icons-material/Business";
+import InventoryIcon from "@mui/icons-material/Inventory";
 
-function Dashboard() {
-  const navigate = useNavigate();
+// Instância 'api' (Axios) do seu services/api
+import api from "../services/api";
 
-  const handleLogout = () => {
-    localStorage.removeItem("sessionToken");
-    localStorage.removeItem("role");
-    localStorage.removeItem("fullname");
-    navigate("/login");
-  };
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    rentedGeneratorsCount: 0,
+    ownedGeneratorsCount: 0,
+    thirdPartyGeneratorsCount: 0,
+    stockGenerators: [],
+    scheduledMaintCount: 0,
+    concludedMaintCount: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  const stats = [
-    { title: "Geradores Vendidos", value: "156", Icon: FaBolt, color: "blue" },
-    { title: "Garantias a Vencer", value: "8", Icon: FaShieldAlt, color: "yellow" },
-    { title: "Manutenções Realizadas", value: "342", Icon: FaTools, color: "green" },
-    { title: "Contratos Ativos", value: "89", Icon: FaFileContract, color: "purple" },
+  // Ao montar o componente, buscar dados da Cloud Function do Parse
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const response = await api.post(
+          "/functions/getDashboardStats",
+          {},
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken")
+            }
+          }
+        );
+
+        if (response.data.result) {
+          setStats(response.data.result);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar estatísticas do dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
+  }, []);
+
+  // Definições dos cards (título, valor, ícone, etc.)
+  const statsData = [
+    {
+      title: "Geradores Alugados",
+      value: stats.rentedGeneratorsCount,
+      icon: <BatteryFullIcon fontSize="small" style={{ color: "#F59E0B" }} />,
+      color: "#F59E0B"
+    },
+    {
+      title: "Geradores da Empresa",
+      value: stats.ownedGeneratorsCount,
+      icon: <BusinessIcon fontSize="small" style={{ color: "#3B82F6" }} />,
+      color: "#3B82F6"
+    },
+    {
+      title: "Geradores de Terceiros",
+      value: stats.thirdPartyGeneratorsCount,
+      icon: <BatteryFullIcon fontSize="small" style={{ color: "#8B5CF6" }} />,
+      color: "#8B5CF6"
+    },
+    {
+      title: "Geradores no Estoque",
+      value: stats.stockGenerators ? stats.stockGenerators.length : 0,
+      icon: <InventoryIcon fontSize="small" style={{ color: "#EF4444" }} />,
+      color: "#EF4444"
+    },
+    {
+      title: "Manutenções Agendadas",
+      value: stats.scheduledMaintCount,
+      icon: <CalendarMonthIcon fontSize="small" style={{ color: "#06B6D4" }} />,
+      color: "#06B6D4"
+    },
+    {
+      title: "Manutenções Concluídas",
+      value: stats.concludedMaintCount,
+      icon: <CheckCircleIcon fontSize="small" style={{ color: "#10B981" }} />,
+      color: "#10B981"
+    }
   ];
-
-  const maintenanceList = [
-    {
-      client: "Cliente 1",
-      generator: "Gerador #1001",
-      date: "23/03/2024",
-      type: "Preventiva",
-    },
-    {
-      client: "Cliente 2",
-      generator: "Gerador #1002",
-      date: "23/03/2024",
-      type: "Preventiva",
-    },
-  ];
-
-  const warrantyList = [
-    {
-      client: "Cliente 1",
-      generator: "Gerador #2001",
-      date: "15/04/2024",
-      daysRemaining: "30 dias restantes",
-    },
-    {
-      client: "Cliente 2",
-      generator: "Gerador #2002",
-      date: "15/04/2024",
-      daysRemaining: "30 dias restantes",
-    },
-  ];
-
-  const chartData = {
-    labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"],
-    datasets: [
-      {
-        label: "Vendas",
-        data: [4, 3, 5, 6, 4, 7],
-        borderColor: "#2563eb",
-        backgroundColor: "#2563eb",
-      },
-      {
-        label: "Manutenções",
-        data: [6, 4, 8, 5, 7, 9],
-        borderColor: "#059669",
-        backgroundColor: "#059669",
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          drawBorder: false,
-        },
-      },
-      x: {
-        grid: {
-          display: false,
-        },
-      },
-    },
-    plugins: {
-      legend: {
-        position: "bottom",
-      },
-    },
-  };
 
   return (
-    <div>
-      <div className="header">
-        <h1>Dashboard</h1>
-        <Button
-          variant="contained"
-          color="error"
-          onClick={handleLogout}
-          sx={{ position: "absolute", top: 20, right: 20 }}
-        >
-          Logout
-        </Button>
-      </div>
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
+      {/* Cabeçalho do Dashboard */}
+      <Box display="flex" alignItems="center" mb={4}>
+        <ConstructionIcon sx={{ fontSize: 32, color: "text.secondary", mr: 1 }} />
+        <Typography variant="h4" component="h1" color="text.primary">
+          Dashboard
+        </Typography>
+      </Box>
 
-      <div className="dashboard-grid">
-        {stats.map((stat, index) => (
-          <div key={index} className="stat-card">
-            <div className="stat-info">
-              <h3>{stat.title}</h3>
-              <div className="value">{stat.value}</div>
-            </div>
-            <div className={`stat-icon ${stat.color}`}>
-              <stat.Icon size={24} />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="chart-container">
-        <h2 className="chart-title">Desempenho Mensal</h2>
-        <div style={{ height: "300px" }}>
-          <Bar data={chartData} options={chartOptions} />
-        </div>
-      </div>
-
-      <div className="list-container">
-        <div className="list-card">
-          <h2>Próximas Manutenções</h2>
-          {maintenanceList.map((item, index) => (
-            <div key={index} className="list-item">
-              <div className="item-info">
-                <h3>{item.client}</h3>
-                <p>{item.generator}</p>
-              </div>
-              <div className="item-status status-preventive">{item.type}</div>
-            </div>
+      {/* Se estiver carregando, mostra Skeleton */}
+      {loading ? (
+        <Grid container spacing={3}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={i}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Skeleton variant="text" width="60%" height={25} />
+                  <Skeleton variant="text" width="40%" height={40} />
+                </CardContent>
+              </Card>
+            </Grid>
           ))}
-        </div>
+        </Grid>
+      ) : (
+        // Caso contrário, mostra os cards
+        <Grid container spacing={3}>
+          {statsData.map((item, idx) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={idx}>
+              <Card
+                variant="outlined"
+                sx={{
+                  borderColor: "#f0f0f0",
+                  transition: "all 0.3s",
+                  "&:hover": {
+                    boxShadow: 3,
+                    transform: "translateY(-3px)"
+                  }
+                }}
+              >
+                <CardContent>
+                  {/* Título + Ícone */}
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 500, color: "text.secondary" }}
+                    >
+                      {item.title}
+                    </Typography>
+                    <Box
+                      sx={{
+                        backgroundColor: "#f9fafb",
+                        p: 1,
+                        borderRadius: 1
+                      }}
+                    >
+                      {item.icon}
+                    </Box>
+                  </Box>
 
-        <div className="list-card">
-          <h2>Garantias a Vencer</h2>
-          {warrantyList.map((item, index) => (
-            <div key={index} className="list-item">
-              <div className="item-info">
-                <h3>{item.client}</h3>
-                <p>{item.generator}</p>
-              </div>
-              <div className="item-status days-remaining">{item.daysRemaining}</div>
-            </div>
+                  {/* Valor (estatística) */}
+                  <Box display="flex" alignItems="baseline">
+                    <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+                      {item.value.toLocaleString()}
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
           ))}
-        </div>
-      </div>
-    </div>
+        </Grid>
+      )}
+    </Container>
   );
 }
-
-export default Dashboard;

@@ -29,13 +29,68 @@ import SignatureCanvas from "react-signature-canvas";
 const CHECKLIST_ITEMS = [
     { key: "verificarNivelLiquido", label: "Verificar e corrigir o nível do líquido de arrefecimento" },
     { key: "verificarVazamentos", label: "Verificar possíveis vazamentos" },
-    // ... outros itens
+    { key: "verificarTampaRadiador", label: "Verificar a tampa do radiador" },
+    { key: "verificarColmeiaRadiador", label: "Verificar se existe obstrução ou vazamento na colméia do radiador" },
+    { key: "verificarBombaAgua", label: "Verificar estado da bomba d'água" },
+    { key: "verificarCorreias", label: "Verificar estado das correias (desgaste e tensão)" },
+    { key: "verificarVentiladores", label: "Verificar ventiladores (trincas, pás soltas, etc.)" },
+    { key: "verificarMangueirasArrefecimento", label: "Verificar mangueiras do sistema de arrefecimento" },
+    { key: "verificarGradeProtecao", label: "Verificar a fixação da grade de proteção (suporte e coxis)" },
+    { key: "verificarNivelOleo", label: "Verificar e corrigir o nível do óleo lubrificante" },
+    { key: "verificarVazamentoOleo", label: "Verificar possíveis vazamentos de óleo lubrificante" },
+    { key: "verificarMangueirasOleo", label: "Verificar mangueiras e abraçadeiras do sistema de óleo lubrificante" },
+    { key: "verificarMangueirasInjecao", label: "Verificar mangueiras e abraçadeiras do sistema de injeção" },
+    { key: "verificarTanqueCombustivel", label: "Verificar estado de conservação do tanque de combustível" },
+    { key: "verificarVazamentosCombustivel", label: "Verificar as conexões e possíveis vazamentos no sistema de combustível" },
+    { key: "drenarSedimentosTanque", label: "Drenar sedimentos do tanque de combustível" },
+    { key: "drenarSedimentosFiltros", label: "Drenar sedimentos dos filtros de combustível" },
+    { key: "verificarBombaInjetora", label: "Verificar articulação da bomba injetora" },
+    { key: "verificarVazamentoAdmissao", label: "Verificar possíveis vazamentos no sistema de admissão de ar" },
+    { key: "verificarMangueirasAdmissao", label: "Verificar mangueiras e abraçadeiras do sistema de admissão de ar" },
+    { key: "verificarTuboAlimentador", label: "Verificar tubo alimentador" },
+    { key: "verificarCondicaoFiltroAr", label: "Verificar condições do filtro de ar" },
+    { key: "verificarIndicadorRestricao", label: "Verificar e testar indicador de restrição do filtro de ar" },
+    { key: "verificarIntercooler", label: "Verificar se o intercooler ou afc está obstruído" },
+    { key: "verificarConexoesEletricas", label: "Verificar o estado das conexões elétricas do motor" },
+    { key: "verificarCircuitoPreAquecimento", label: "Verificar o estado do circuito e o funcionamento do pré-aquecimento" },
+    { key: "testePressostato", label: "Teste a atuação do sensor de pressão de óleo (pressostato)" },
+    { key: "testeTermostato", label: "Teste a atuação do sensor de temperatura (termostato)" },
+    { key: "verificarRuidoMotor", label: "Verificar possíveis ruídos anormais no motor" },
+    { key: "verificarAmortecedores", label: "Verificar amortecedores" },
+    { key: "verificarConexoesBateria", label: "Verificar estado de limpeza dos cabos e conectores de bateria" },
+    { key: "verificarTensaoTerminaisBateria", label: "Verificar o estado de tensão e dos terminais da bateria (aplicar vaselina se necessário)" },
+    { key: "verificarNivelEletronicoBateria", label: "Verificar o nível do eletrólito e carga" },
+    { key: "verificarQTA", label: "Verificar estado dos disjuntores/contatores do QTA" },
+    { key: "verificarLimpezaQTA", label: "Verificar e realizar a limpeza do QTA se necessário" },
+    { key: "verificarEstadoAmbiente", label: "Verificar o estado do ambiente" },
+    { key: "verificarLocalRestrito", label: "O local está restrito e protegido?" }
 ];
 
 const CHECKLIST_ITEMS_INPUT = [
-    { key: "temperaturaLiquido", label: "Temperatura do líquido (Cº)" },
-    { key: "pressaoOleo", label: "Pressão do óleo (Bar)" },
-    // ... mantenha outros campos conforme necessário
+    { key: "temperaturaLiquido", label: "Temperatura do líquido de arrefecimento (Cº)" },
+    { key: "pressaoOleo", label: "Pressão do óleo lubrificante (Bar)" },
+    { key: "horimetro", label: "Horímetro (h)" }, // Campo obrigatório
+    { key: "tensaoGerador", label: "Tensão do gerador (V)" },
+    { key: "rotacaoMotor", label: "Rotação do motor (rpm)" },
+    { key: "tensaoRetificador", label: "Tensão do retificador (V)" },
+    { key: "tensaoMinimaBateria", label: "Tensão mínima da bateria na partida (V)" },
+    { key: "tensaoRS", label: "Tensão RS (V)" },
+    { key: "tensaoST", label: "Tensão ST (V)" },
+    { key: "tensaoRT", label: "Tensão RT (V)" },
+    { key: "correnteR", label: "Corrente R (A)" },
+    { key: "correnteS", label: "Corrente S (A)" },
+    { key: "correnteT", label: "Corrente T (A)" },
+    { key: "potenciaKW", label: "Potência (kW)" },
+    { key: "potenciaKVAr", label: "Potência (kVAr)" },
+    { key: "potenciaKVA", label: "Potência (kVA)" },
+    { key: "frequenciaGerador", label: "Frequência do gerador (Hz)" },
+    { key: "nivelCombustivel", label: "Nível de combustível (L)" },
+    { key: "pressaoCombustivel", label: "Pressão do combustível (bar)" },
+    { key: "temperaturaCombustivel", label: "Temperatura do combustível (Cº)" },
+    { key: "observacoes", label: "Observações" },
+    { key: "localizacao", label: "Localização" },
+    { key: "nomeTecnico", label: "Nome do técnico" },
+    { key: "nomeCliente", label: "Nome do cliente" }
 ];
 
 function AttendanceDetails() {
@@ -45,92 +100,69 @@ function AttendanceDetails() {
     const [loading, setLoading] = useState(true);
     const [maintenanceInfo, setMaintenanceInfo] = useState(null);
 
-    // Campos do novo relatório
+    // Campos do relatório
     const [checkInTime, setCheckInTime] = useState("");
     const [checkOutTime, setCheckOutTime] = useState("");
     const [reportDescription, setReportDescription] = useState("");
-    const [mileage, setMileage] = useState("");
     const [duration, setDuration] = useState("");
 
-    // Checklist de checkboxes
+    // Checklist
     const [selectedChecklist, setSelectedChecklist] = useState([]);
-    // Checklist de inputs
     const [checklistInputs, setChecklistInputs] = useState({});
 
-    // Peças (inventory)
+    // Peças
     const [availableParts, setAvailableParts] = useState([]);
-    const [partsUsed, setPartsUsed] = useState([]); // array de objetos { objectId, name, salePrice, usedQuantity, ... }
+    const [partsUsed, setPartsUsed] = useState([]);
     const [selectedPart, setSelectedPart] = useState("");
 
-    // Fotos
+    // Upload de imagens (permite múltiplos arquivos)
     const [filesToUpload, setFilesToUpload] = useState([]);
 
     // Relatórios anteriores do gerador
     const [generatorReports, setGeneratorReports] = useState([]);
 
-    // Modal de remover peça
+    // Modal de remoção de peça
     const [openConfirm, setOpenConfirm] = useState(false);
     const [confirmItemIndex, setConfirmItemIndex] = useState(-1);
 
-    // Assinatura do Técnico
+    // Assinaturas
     const [signatureData, setSignatureData] = useState(null);
     const sigCanvas = useRef({});
-
-    // Assinatura do Cliente
     const [clientSignatureData, setClientSignatureData] = useState(null);
     const clientSigCanvas = useRef({});
 
-    // Novos estados para status, startTime, endTime e duration
+    // Status e horários
     const [status, setStatus] = useState("");
     const [startTime, setStartTime] = useState("");
     const [endTime, setEndTime] = useState("");
     const [calculatedDuration, setCalculatedDuration] = useState("");
 
-    // =========================
-    // useEffect - carrega dados
-    // =========================
     useEffect(() => {
         fetchMaintenanceDetails();
         fetchInventoryItems();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [maintenanceId]);
 
-    // =========================
-    // 1) Buscar dados da manutenção
-    // =========================
     const fetchMaintenanceDetails = async () => {
         try {
             setLoading(true);
             const sessionToken = localStorage.getItem("sessionToken");
-            if (!sessionToken) {
-                throw new Error("Sessão inválida. Faça login novamente.");
-            }
-
+            if (!sessionToken) throw new Error("Sessão inválida. Faça login novamente.");
             const resp = await api.post(
                 "/functions/getMaintenanceDetails",
                 { maintenanceId },
-                {
-                    headers: {
-                        "X-Parse-Session-Token": sessionToken,
-                    },
-                }
+                { headers: { "X-Parse-Session-Token": sessionToken } }
             );
-
             if (resp.data.result) {
                 const data = resp.data.result;
                 console.log("Dados da manutenção carregados:", data);
-
                 setMaintenanceInfo(data);
-
                 setStatus(data.status || "Agendada");
                 setStartTime(data.startTime || "");
                 setEndTime(data.endTime || "");
                 setDuration(data.duration || "");
-
                 if (data.startTime) setCheckInTime(data.startTime);
                 if (data.endTime) setCheckOutTime(data.endTime);
-
-                // Se houver gerador, busca relatórios anteriores
                 if (data.generatorId?.objectId) {
                     fetchGeneratorReports(data.generatorId.objectId);
                 }
@@ -149,19 +181,12 @@ function AttendanceDetails() {
         }
     };
 
-    // =========================
-    // 2) Buscar relatórios anteriores
-    // =========================
     const fetchGeneratorReports = async (generatorId) => {
         try {
             const resp = await api.post(
                 "/functions/getReportsByGenerator",
                 { generatorId },
-                {
-                    headers: {
-                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-                    },
-                }
+                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
             );
             if (resp.data.result) {
                 const reports = resp.data.result.map((report) => {
@@ -188,26 +213,19 @@ function AttendanceDetails() {
         }
     };
 
-    // =========================
-    // 3) Buscar peças do estoque
-    // =========================
     const fetchInventoryItems = async () => {
         try {
             const resp = await api.post(
                 "/functions/getAllInventoryItems",
                 {},
-                {
-                    headers: {
-                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-                    },
-                }
+                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
             );
             if (resp.data.result) {
                 const mapped = resp.data.result.map((item) => ({
                     objectId: item.objectId,
                     name: item.itemName,
                     quantity: item.quantity || 0,
-                    salePrice: item.salePrice || 0, // <--- importante para mostrar preço
+                    salePrice: item.salePrice || 0,
                 }));
                 setAvailableParts(mapped);
             }
@@ -216,20 +234,15 @@ function AttendanceDetails() {
         }
     };
 
-    // =========================
-    // 4) Iniciar e Finalizar Atendimento
-    // =========================
     const handleStart = async () => {
         try {
             const sessionToken = localStorage.getItem("sessionToken");
             if (!sessionToken) throw new Error("Sessão inválida. Faça login novamente.");
-
             const response = await api.post(
                 "/functions/startMaintenance",
                 { maintenanceId },
                 { headers: { "X-Parse-Session-Token": sessionToken } }
             );
-
             if (response.data.result && response.data.result.success) {
                 setStatus(response.data.result.status);
                 setStartTime(response.data.result.startTime);
@@ -252,13 +265,11 @@ function AttendanceDetails() {
         try {
             const sessionToken = localStorage.getItem("sessionToken");
             if (!sessionToken) throw new Error("Sessão inválida. Faça login novamente.");
-
             const response = await api.post(
                 "/functions/finishMaintenance",
                 { maintenanceId },
                 { headers: { "X-Parse-Session-Token": sessionToken } }
             );
-
             if (response.data.result && response.data.result.success) {
                 setStatus(response.data.result.status);
                 setEndTime(response.data.result.endTime);
@@ -266,6 +277,15 @@ function AttendanceDetails() {
                 setCheckOutTime(response.data.result.endTime);
                 setDuration(response.data.result.duration);
                 alert("Atendimento finalizado com sucesso.");
+                setSelectedChecklist([]);
+                setChecklistInputs({});
+                setPartsUsed([]);
+                setReportDescription("");
+                setSignatureData(null);
+                setClientSignatureData(null);
+                sigCanvas.current.clear();
+                clientSigCanvas.current.clear();
+                navigate("/tecnico");
             } else {
                 alert("Falha ao finalizar o atendimento.");
             }
@@ -279,9 +299,6 @@ function AttendanceDetails() {
         }
     };
 
-    // =========================
-    // 5) Checklist
-    // =========================
     const handleToggleChecklist = (itemKey) => {
         if (selectedChecklist.includes(itemKey)) {
             setSelectedChecklist(selectedChecklist.filter((i) => i !== itemKey));
@@ -294,11 +311,6 @@ function AttendanceDetails() {
         setChecklistInputs({ ...checklistInputs, [key]: value });
     };
 
-    // =========================
-    // 6) Peças trocadas (PartsUsed)
-    // =========================
-
-    // Adicionar peça com usedQuantity = 1
     const handleAddPart = () => {
         if (selectedPart) {
             const itemData = availableParts.find((x) => x.objectId === selectedPart);
@@ -309,11 +321,11 @@ function AttendanceDetails() {
         }
     };
 
-    // Remover peça com confirmação
     const handleRemovePart = (index) => {
         setConfirmItemIndex(index);
         setOpenConfirm(true);
     };
+
     const confirmRemovePart = () => {
         if (confirmItemIndex >= 0 && confirmItemIndex < partsUsed.length) {
             setPartsUsed(partsUsed.filter((_, i) => i !== confirmItemIndex));
@@ -321,22 +333,19 @@ function AttendanceDetails() {
         setOpenConfirm(false);
         setConfirmItemIndex(-1);
     };
+
     const cancelRemovePart = () => {
         setOpenConfirm(false);
         setConfirmItemIndex(-1);
     };
 
-    // Ajustar quantidade (usedQuantity) da peça
     const handleQuantityChange = (index, newQty) => {
-        if (newQty < 1) return; // não deixa zero ou negativo
+        if (newQty < 1) return;
         const updated = [...partsUsed];
         updated[index].usedQuantity = newQty;
         setPartsUsed(updated);
     };
 
-    // =========================
-    // 7) Upload de imagens
-    // =========================
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
         setFilesToUpload(files);
@@ -360,21 +369,15 @@ function AttendanceDetails() {
                 base64File,
                 fileName: file.name,
             },
-            {
-                headers: {
-                    "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-                },
-            }
+            { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
         );
     };
 
-    // =========================
-    // 8) Assinaturas
-    // =========================
     const clearSignature = () => {
         sigCanvas.current.clear();
         setSignatureData(null);
     };
+
     const saveSignature = () => {
         if (!sigCanvas.current.isEmpty()) {
             const dataURL = sigCanvas.current.toDataURL("image/png");
@@ -388,6 +391,7 @@ function AttendanceDetails() {
         clientSigCanvas.current.clear();
         setClientSignatureData(null);
     };
+
     const saveClientSignature = () => {
         if (!clientSigCanvas.current.isEmpty()) {
             const dataURL = clientSigCanvas.current.toDataURL("image/png");
@@ -397,9 +401,6 @@ function AttendanceDetails() {
         }
     };
 
-    // =========================
-    // 9) Salvar Relatório
-    // =========================
     const handleSaveReport = async () => {
         try {
             if (!checkInTime) {
@@ -414,8 +415,11 @@ function AttendanceDetails() {
                 alert("Por favor, descreva o atendimento realizado.");
                 return;
             }
-
-            // Verifica se assinaturas foram salvas
+            // Validação do horímetro
+            if (!checklistInputs["horimetro"]) {
+                alert("Por favor, informe o horímetro.");
+                return;
+            }
             if (!signatureData) {
                 alert("Por favor, salve a assinatura do técnico antes de salvar o relatório.");
                 return;
@@ -425,21 +429,16 @@ function AttendanceDetails() {
                 return;
             }
 
-            // Monta array de peças no formato que o backend espera
             const partsPayload = partsUsed.map((p) => ({
                 itemId: p.objectId,
                 quantity: p.usedQuantity || 1,
             }));
 
-            // Checklist checkbox
             const checklistText = selectedChecklist.join(", ");
-
-            // Checklist inputs
             const checklistInputsArray = Object.entries(checklistInputs).map(
                 ([key, value]) => ({ key, value })
             );
 
-            // Assinaturas em base64
             const technicianSignatureBase64 = signatureData;
             const customerSignatureBase64 = clientSignatureData;
 
@@ -448,7 +447,6 @@ function AttendanceDetails() {
                 {
                     maintenanceId,
                     reportDescription,
-                    mileage,
                     partsUsed: partsPayload,
                     checkInTime,
                     checkOutTime,
@@ -459,36 +457,29 @@ function AttendanceDetails() {
                     customerSignature: customerSignatureBase64,
                     customerId: maintenanceInfo?.generatorId?.customerId?.objectId
                 },
-                {
-                    headers: {
-                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-                    },
-                }
+                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
             );
 
             if (resp.data.result && resp.data.result.report) {
                 const reportId = resp.data.result.report.objectId;
-                // Sobe as fotos
                 for (const file of filesToUpload) {
                     await uploadAttachment(reportId, file);
                 }
+                // Atualiza o horímetro, se necessário
+                if (checklistInputs["horimetro"]) {
+                    await api.post(
+                        "/functions/updateGeneratorHorimetro",
+                        {
+                            generatorId: maintenanceInfo.generatorId.objectId,
+                            horimetroAtual: checklistInputs["horimetro"]
+                        },
+                        { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+                    );
+                }
                 alert("Relatório salvo com sucesso!");
+                // NÃO limpamos checkInTime e checkOutTime para que seja possível finalizar o atendimento.
+                // Apenas os campos do relatório são resetados:
 
-                // Reseta estados
-                setCheckInTime("");
-                setCheckOutTime("");
-                setDuration("");
-                setSelectedChecklist([]);
-                setChecklistInputs({});
-                setPartsUsed([]);
-                setReportDescription("");
-                setMileage("");
-                setSignatureData(null);
-                setClientSignatureData(null);
-                sigCanvas.current.clear();
-                clientSigCanvas.current.clear();
-
-                navigate("/tecnico");
             } else {
                 alert("Falha ao criar relatório.");
             }
@@ -502,9 +493,6 @@ function AttendanceDetails() {
         }
     };
 
-    // =========================
-    // Render Condicional
-    // =========================
     if (loading) {
         return (
             <Container maxWidth="sm" sx={{ mt: 4 }}>
@@ -520,11 +508,7 @@ function AttendanceDetails() {
             <Container maxWidth="sm" sx={{ mt: 4 }}>
                 <Paper sx={{ p: 3 }}>
                     <Typography color="error">Manutenção não encontrada.</Typography>
-                    <Button
-                        variant="outlined"
-                        onClick={() => navigate("/tecnico")}
-                        sx={{ mt: 2 }}
-                    >
+                    <Button variant="outlined" onClick={() => navigate("/tecnico")} sx={{ mt: 2 }}>
                         Voltar
                     </Button>
                 </Paper>
@@ -532,12 +516,10 @@ function AttendanceDetails() {
         );
     }
 
-    // Extrai informações
     const generator = maintenanceInfo.generatorId || {};
     const customer = generator.customerId || {};
     const technician = maintenanceInfo.technicianUser || {};
 
-    // Calcula total em peças
     const totalPartsCost = partsUsed.reduce(
         (acc, part) => acc + part.salePrice * part.usedQuantity,
         0
@@ -549,11 +531,7 @@ function AttendanceDetails() {
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Typography variant="h6">Ordem de Serviço - {maintenanceId}</Typography>
-                    <Button
-                        variant="outlined"
-                        startIcon={<ArrowBackIcon />}
-                        onClick={() => navigate("/tecnico")}
-                    >
+                    <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate("/tecnico")}>
                         Voltar
                     </Button>
                 </Box>
@@ -575,19 +553,16 @@ function AttendanceDetails() {
                 </Typography>
                 {status === "Em andamento" && startTime && (
                     <Typography>
-                        <strong>Hora de Início:</strong>{" "}
-                        {new Date(startTime).toLocaleString("pt-BR")}
+                        <strong>Hora de Início:</strong> {new Date(startTime).toLocaleString("pt-BR")}
                     </Typography>
                 )}
                 {status === "Concluída" && endTime && (
                     <>
                         <Typography>
-                            <strong>Hora de Início:</strong>{" "}
-                            {new Date(startTime).toLocaleString("pt-BR")}
+                            <strong>Hora de Início:</strong> {new Date(startTime).toLocaleString("pt-BR")}
                         </Typography>
                         <Typography>
-                            <strong>Hora de Finalização:</strong>{" "}
-                            {new Date(endTime).toLocaleString("pt-BR")}
+                            <strong>Hora de Finalização:</strong> {new Date(endTime).toLocaleString("pt-BR")}
                         </Typography>
                         <Typography>
                             <strong>Duração:</strong> {calculatedDuration || duration}
@@ -607,22 +582,9 @@ function AttendanceDetails() {
                 <Typography variant="subtitle2" sx={{ fontWeight: "bold", mt: 1 }}>
                     Duração: {duration || "N/A"}
                 </Typography>
-
                 <Box display="flex" gap={2} mt={2}>
-                    <Button
-                        variant="contained"
-                        onClick={handleStart}
-                        disabled={status === "Em andamento" || status === "Concluída"}
-                    >
+                    <Button variant="contained" onClick={handleStart} disabled={status === "Em andamento" || status === "Concluída"}>
                         Iniciar Atendimento
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="secondary"
-                        onClick={handleFinish}
-                        disabled={!checkInTime || status === "Concluída"}
-                    >
-                        Finalizar Atendimento
                     </Button>
                 </Box>
             </Paper>
@@ -637,11 +599,9 @@ function AttendanceDetails() {
                         const dateStr = rep.createdAt
                             ? rep.createdAt.toLocaleString("pt-BR")
                             : "Data não encontrada";
-
                         const partsUsedStr = (rep.partsUsed || [])
                             .map((p) => `${p.itemName}(x${p.quantity})`)
                             .join(", ");
-
                         return (
                             <ListItem key={idx} divider>
                                 <ListItemText
@@ -654,7 +614,7 @@ function AttendanceDetails() {
                 </List>
             </Paper>
 
-            {/* Relato e Quilometragem */}
+            {/* Relato */}
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Relato de Execução
@@ -668,19 +628,9 @@ function AttendanceDetails() {
                     onChange={(e) => setReportDescription(e.target.value)}
                     sx={{ mb: 2 }}
                 />
-
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
-                    Quilometragem
-                </Typography>
-                <TextField
-                    fullWidth
-                    placeholder="Informe a quilometragem"
-                    value={mileage}
-                    onChange={(e) => setMileage(e.target.value)}
-                />
             </Paper>
 
-            {/* Checklist de Marcar */}
+            {/* Checklist - Itens de Marcar */}
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Checklist - Itens de Marcar
@@ -690,13 +640,14 @@ function AttendanceDetails() {
                         <Checkbox
                             checked={selectedChecklist.includes(item.key)}
                             onChange={() => handleToggleChecklist(item.key)}
+                            sx={{ transform: "scale(1.5)" }}
                         />
                         <Typography>{item.label}</Typography>
                     </Box>
                 ))}
             </Paper>
 
-            {/* Checklist de Inputs */}
+            {/* Checklist - Campos de Entrada */}
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Checklist - Campos de Entrada
@@ -705,20 +656,21 @@ function AttendanceDetails() {
                     <Box key={inputItem.key} mb={2}>
                         <Typography sx={{ fontWeight: "bold", mb: 0.5 }}>
                             {inputItem.label}
+                            {inputItem.key === "horimetro" && " *"}
                         </Typography>
                         <TextField
                             fullWidth
+                            type={inputItem.key === "horimetro" ? "number" : "text"}
                             placeholder="Digite o valor"
                             value={checklistInputs[inputItem.key] || ""}
-                            onChange={(e) =>
-                                handleChecklistInputChange(inputItem.key, e.target.value)
-                            }
+                            onChange={(e) => handleChecklistInputChange(inputItem.key, e.target.value)}
+                            required={inputItem.key === "horimetro"}
                         />
                     </Box>
                 ))}
             </Paper>
 
-            {/* Peças Trocadas (com preço e quantidade) */}
+            {/* Peças Trocadas / Solicitadas */}
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Peças Trocadas / Solicitadas
@@ -733,68 +685,43 @@ function AttendanceDetails() {
                         >
                             {availableParts.map((part) => (
                                 <MenuItem key={part.objectId} value={part.objectId}>
-                                    {/* Exibe também o preço unitário */}
                                     {part.name} - R$ {part.salePrice.toFixed(2)} (Estoque: {part.quantity})
                                 </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
-                    <Button
-                        variant="contained"
-                        onClick={handleAddPart}
-                        disabled={!selectedPart}
-                    >
+                    <Button variant="contained" onClick={handleAddPart} disabled={!selectedPart}>
                         Adicionar
                     </Button>
                 </Box>
-
-                {/* Lista de peças adicionadas */}
                 <List sx={{ mt: 2, maxHeight: 150, overflowY: "auto" }}>
                     {partsUsed.map((part, index) => {
                         const totalValue = part.salePrice * part.usedQuantity;
-
                         return (
                             <ListItem key={index} divider>
                                 <ListItemText
                                     primary={`${part.name} (R$ ${part.salePrice.toFixed(2)} un.)`}
-                                    secondary={
-                                        `Qtde: ${part.usedQuantity} | Total: R$ ${totalValue.toFixed(2)}`
-                                    }
+                                    secondary={`Qtde: ${part.usedQuantity} | Total: R$ ${totalValue.toFixed(2)}`}
                                 />
-                                {/* Botão - */}
-                                <IconButton
-                                    onClick={() => handleQuantityChange(index, part.usedQuantity - 1)}
-                                >
+                                <IconButton onClick={() => handleQuantityChange(index, part.usedQuantity - 1)}>
                                     -
                                 </IconButton>
-
-                                {/* Botão + */}
-                                <IconButton
-                                    onClick={() => handleQuantityChange(index, part.usedQuantity + 1)}
-                                >
+                                <IconButton onClick={() => handleQuantityChange(index, part.usedQuantity + 1)}>
                                     +
                                 </IconButton>
-
-                                {/* Botão Remover */}
-                                <IconButton
-                                    edge="end"
-                                    color="error"
-                                    onClick={() => handleRemovePart(index)}
-                                >
+                                <IconButton edge="end" color="error" onClick={() => handleRemovePart(index)}>
                                     <DeleteIcon />
                                 </IconButton>
                             </ListItem>
                         );
                     })}
                 </List>
-
-                {/* Total Final das Peças */}
                 <Typography sx={{ mt: 2, fontWeight: "bold" }}>
                     Valor Total das Peças: R$ {totalPartsCost.toFixed(2)}
                 </Typography>
             </Paper>
 
-            {/* Upload de imagens */}
+            {/* Upload de Imagens */}
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
                     Anexar Imagens
@@ -875,7 +802,19 @@ function AttendanceDetails() {
                 </Button>
             </Box>
 
-            {/* Modal para remover peça */}
+            {/* Botão de Finalizar Atendimento */}
+            <Box textAlign="center" mb={3}>
+                <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleFinish}
+                    disabled={!checkInTime || status === "Concluída"}
+                >
+                    Finalizar Atendimento
+                </Button>
+            </Box>
+
+            {/* Modal para Remover Peça */}
             <Dialog open={openConfirm} onClose={cancelRemovePart}>
                 <DialogTitle>Remover Peça</DialogTitle>
                 <DialogContent>Deseja remover esta peça da lista?</DialogContent>

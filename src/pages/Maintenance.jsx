@@ -268,9 +268,10 @@ function Maintenance() {
 
   // Exclui manutenção
   const handleDelete = async (maintenanceId) => {
+    console.log(maintenanceId)
     try {
       await api.post(
-        "/functions/deleteMaintenance",
+        "/functions/softDeleteMaintenance",
         { maintenanceId },
         { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
       );
@@ -362,6 +363,7 @@ function Maintenance() {
             value={formData.generatorId}
             onChange={(e) => setFormData({ ...formData, generatorId: e.target.value })}
             margin="dense"
+            InputLabelProps={{ shrink: true }}  // Força o encolhimento do label
             SelectProps={{ native: true }}
           >
             <option value="">Selecione um gerador</option>
@@ -379,6 +381,7 @@ function Maintenance() {
             value={formData.technicianId}
             onChange={(e) => setFormData({ ...formData, technicianId: e.target.value })}
             margin="dense"
+            InputLabelProps={{ shrink: true }}  // Força o encolhimento do label
             SelectProps={{ native: true }}
           >
             <option value="">Selecione um técnico</option>
@@ -388,6 +391,7 @@ function Maintenance() {
               </option>
             ))}
           </TextField>
+
 
           <TextField
             fullWidth
@@ -444,6 +448,7 @@ function Maintenance() {
           </Button>
         </DialogActions>
       </Dialog>
+
     </Container>
   );
 }

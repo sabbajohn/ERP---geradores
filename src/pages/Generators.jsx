@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import {
   Container,
   Typography,
+  Box,
+  TextField,
   Button,
-  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -11,18 +12,18 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Box,
+  IconButton,
   Dialog,
-  DialogActions,
-  DialogContent,
   DialogTitle,
-  TextField,
+  DialogContent,
+  DialogActions,
   Tooltip,
-  Chip
+  Chip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { Link } from "react-router-dom"; // <-- Import para criar links de navegação
 import api from "../services/api";
 
 function Generators() {
@@ -35,21 +36,17 @@ function Generators() {
   // Armazena o gerador que está sendo editado
   const [editingGenerator, setEditingGenerator] = useState(null);
 
-  // Estado do formulário dentro do modal
+  // Estado do formulário dentro do modal (removidos os campos de manutenção)
   const [formData, setFormData] = useState({
     name: "",
     serialNumber: "",
     customerId: "",
     location: "",
-    status: "active",
-    lastMaintenanceDate: "",
-    ownershipType: "Empresa",
+    status: "disponivel", // valor padrão
     isDeleted: false,
-
-    // Novos campos:
     purchaseDate: "",
     deliveryDate: "",
-    maintenanceDates: []
+    ownershipType: "Empresa", // Adicionei um valor padrão
   });
 
   // Estado para a barra de pesquisa
@@ -67,7 +64,6 @@ function Generators() {
           },
         }
       );
-
       if (response.data.result) {
         const customerMap = {};
         response.data.result.forEach((customer) => {
@@ -92,7 +88,6 @@ function Generators() {
           },
         }
       );
-
       if (response.data.result) {
         setGenerators(response.data.result);
       }
@@ -127,7 +122,7 @@ function Generators() {
     }
   };
 
-  // Carrega novamente geradores e clientes (se desejar)
+  // Carrega novamente geradores e clientes (opcional, mas pode ser útil)
   useEffect(() => {
     fetchGenerators();
     fetchClients();
@@ -140,29 +135,20 @@ function Generators() {
     if (generator) {
       // Edição
       setEditingGenerator(generator);
-
       setFormData({
         name: generator.name || "",
         serialNumber: generator.serialNumber || "",
         customerId: generator.customerId || "",
         location: generator.location || "",
-        status: generator.status || "active",
-        lastMaintenanceDate: generator.lastMaintenanceDate
-          ? generator.lastMaintenanceDate.slice(0, 10)
-          : "",
-        ownershipType: generator.ownershipType || "Empresa",
+        status: generator.status || "disponivel",
         isDeleted: false,
-
-        // Novos campos:
         purchaseDate: generator.purchaseDate
           ? generator.purchaseDate.slice(0, 10)
           : "",
         deliveryDate: generator.deliveryDate
           ? generator.deliveryDate.slice(0, 10)
           : "",
-        maintenanceDates: generator.maintenanceDates
-          ? generator.maintenanceDates.map((date) => date.slice(0, 10))
-          : [],
+        ownershipType: generator.ownershipType || "Empresa",
       });
     } else {
       // Criação
@@ -172,15 +158,11 @@ function Generators() {
         serialNumber: "",
         customerId: "",
         location: "",
-        status: "active",
-        lastMaintenanceDate: "",
-        ownershipType: "Empresa",
+        status: "disponivel",
         isDeleted: false,
-
-        // Novos campos:
         purchaseDate: "",
         deliveryDate: "",
-        maintenanceDates: []
+        ownershipType: "Empresa",
       });
     }
     setOpen(true);
@@ -196,11 +178,7 @@ function Generators() {
   // --------------------------------------
   const handleSave = async () => {
     try {
-      const payload = {
-        ...formData,
-        maintenanceDates: formData.maintenanceDates.map((d) => d.trim()),
-      };
-
+      const payload = { ...formData };
       if (editingGenerator) {
         // Atualiza
         await api.post(
@@ -223,7 +201,6 @@ function Generators() {
           },
         });
       }
-
       fetchGenerators();
       handleClose();
     } catch (error) {
@@ -235,7 +212,7 @@ function Generators() {
   };
 
   // --------------------------------------
-  // Excluir Gerador (softDelete)
+  // Excluir Gerador (soft delete)
   // --------------------------------------
   const handleDelete = async (generatorId) => {
     if (!window.confirm("Tem certeza que deseja excluir este gerador?")) return;
@@ -262,7 +239,6 @@ function Generators() {
     const lowerSearch = searchTerm.toLowerCase();
     const generatorName = (g.name || "").toLowerCase();
     const customerName = (g.customerName || "").toLowerCase();
-
     return (
       generatorName.includes(lowerSearch) ||
       customerName.includes(lowerSearch)
@@ -314,18 +290,8 @@ function Generators() {
               <TableCell><strong>Cliente</strong></TableCell>
               <TableCell><strong>Número de Série</strong></TableCell>
               <TableCell><strong>Localização</strong></TableCell>
-
-              {/* Nova coluna: Data de Compra */}
               <TableCell><strong>Data de Compra</strong></TableCell>
-              {/* Nova coluna: Entrega Técnica */}
               <TableCell><strong>Entrega Técnica</strong></TableCell>
-
-              {/* Nova coluna: Últ. Manutenção */}
-              <TableCell><strong>Últ. Manutenção</strong></TableCell>
-
-              {/* Nova coluna: Datas de Manutenção (array) */}
-              <TableCell><strong>Manutenções</strong></TableCell>
-
               <TableCell><strong>Status</strong></TableCell>
               <TableCell><strong>Propriedade</strong></TableCell>
               <TableCell align="center"><strong>Ações</strong></TableCell>
@@ -335,61 +301,71 @@ function Generators() {
           <TableBody>
             {filteredGenerators.map((generator) => (
               <TableRow key={generator.objectId}>
-                <TableCell>{generator.name}</TableCell>
                 <TableCell>
-                  {generator.customerName
-                    ? generator.customerName
-                    : "Sem Cliente"}
+                  {/* Link para a página de detalhes do gerador */}
+                  <Link
+                    to={`/generator/${generator.objectId}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    {generator.name}
+                  </Link>
                 </TableCell>
-                <TableCell>{generator.serialNumber}</TableCell>
+                <TableCell>
+                  {generator.customerName ? generator.customerName : "Sem Cliente"}
+                </TableCell>
+                <TableCell>
+                  <Link
+                    to={`/generator/${generator.objectId}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    {generator.serialNumber}
+                  </Link>
+                </TableCell>
                 <TableCell>{generator.location}</TableCell>
-
-                {/* Data de Compra */}
                 <TableCell>
                   {generator.purchaseDate
                     ? new Date(generator.purchaseDate).toLocaleDateString("pt-BR")
                     : "—"}
                 </TableCell>
-
-                {/* Data de Entrega Técnica */}
                 <TableCell>
                   {generator.deliveryDate
                     ? new Date(generator.deliveryDate).toLocaleDateString("pt-BR")
                     : "—"}
                 </TableCell>
-
-                {/* Última Manutenção */}
-                <TableCell>
-                  {generator.lastMaintenanceDate
-                    ? new Date(generator.lastMaintenanceDate).toLocaleDateString("pt-BR")
-                    : "Sem data"}
-                </TableCell>
-
-                {/* Datas de Manutenção (array) */}
-                <TableCell>
-                  {generator.maintenanceDates && generator.maintenanceDates.length > 0
-                    ? generator.maintenanceDates
-                      .map((d) =>
-                        new Date(d).toLocaleDateString("pt-BR")
-                      )
-                      .join(", ")
-                    : "—"}
-                </TableCell>
-
                 <TableCell>
                   <Chip
-                    label={generator.status === "active" ? "Ativo" : generator.status}
-                    color={generator.status === "active" ? "success" : "error"}
+                    label={
+                      generator.status === "disponivel"
+                        ? "Disponível"
+                        : generator.status === "alugado"
+                          ? "Alugado"
+                          : generator.status === "em manutencao"
+                            ? "Em Manutenção"
+                            : generator.status === "ativo"
+                              ? "Ativo"
+                              : generator.status
+                    }
+                    color={
+                      generator.status === "disponivel"
+                        ? "success"
+                        : generator.status === "alugado"
+                          ? "warning"
+                          : generator.status === "em manutencao"
+                            ? "error"
+                            : generator.status === "ativo"
+                              ? "primary"
+                              : "default"
+                    }
                   />
                 </TableCell>
-
                 <TableCell>
                   <Chip
                     label={generator.ownershipType}
-                    color={generator.ownershipType === "Empresa" ? "primary" : "default"}
+                    color={
+                      generator.ownershipType === "Empresa" ? "primary" : "default"
+                    }
                   />
                 </TableCell>
-
                 <TableCell align="center">
                   <Tooltip title="Editar">
                     <IconButton
@@ -399,7 +375,6 @@ function Generators() {
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-
                   <Tooltip title="Excluir">
                     <IconButton
                       color="error"
@@ -467,8 +442,10 @@ function Generators() {
               setFormData({ ...formData, status: e.target.value })
             }
           >
-            <option value="active">Ativo</option>
-            <option value="inactive">Inativo</option>
+            <option value="disponivel">Disponível</option>
+            <option value="alugado">Alugado</option>
+            <option value="em manutencao">Em Manutenção</option>
+            <option value="ativo">Ativo</option>
           </TextField>
 
           {/* Campo de data: Data de Compra */}
@@ -480,10 +457,7 @@ function Generators() {
             InputLabelProps={{ shrink: true }}
             value={formData.purchaseDate}
             onChange={(e) =>
-              setFormData({
-                ...formData,
-                purchaseDate: e.target.value,
-              })
+              setFormData({ ...formData, purchaseDate: e.target.value })
             }
           />
 
@@ -496,45 +470,11 @@ function Generators() {
             InputLabelProps={{ shrink: true }}
             value={formData.deliveryDate}
             onChange={(e) =>
-              setFormData({
-                ...formData,
-                deliveryDate: e.target.value,
-              })
+              setFormData({ ...formData, deliveryDate: e.target.value })
             }
           />
 
-          {/* Campo de data: Última Manutenção */}
-          <TextField
-            label="Última Manutenção"
-            fullWidth
-            margin="dense"
-            type="date"
-            InputLabelProps={{ shrink: true }}
-            value={formData.lastMaintenanceDate}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                lastMaintenanceDate: e.target.value,
-              })
-            }
-          />
-
-          {/* Datas de Manutenção (array) - inseridas como string separada por vírgulas */}
-          <TextField
-            label="Datas de Manutenção (separadas por vírgula)"
-            fullWidth
-            margin="dense"
-            type="text"
-            value={formData.maintenanceDates.join(",")}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                maintenanceDates: e.target.value.split(","),
-              })
-            }
-          />
-
-          {/* Cliente (Opcional) */}
+          {/* Campo: Cliente (Opcional) */}
           <TextField
             label="Cliente (Opcional)"
             select
@@ -555,14 +495,15 @@ function Generators() {
             ))}
           </TextField>
 
-          {/* Propriedade do Gerador */}
+          {/* Campo: Propriedade do Gerador */}
           <TextField
             label="Propriedade do Gerador"
             select
             fullWidth
             margin="dense"
             SelectProps={{ native: true }}
-            value={formData.ownershipType || "Empresa"}
+            InputLabelProps={{ shrink: true }}
+            value={formData.ownershipType}
             onChange={(e) =>
               setFormData({ ...formData, ownershipType: e.target.value })
             }

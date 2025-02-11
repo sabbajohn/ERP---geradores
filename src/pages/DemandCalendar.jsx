@@ -12,20 +12,22 @@ import {
     FormControl,
     Select,
     MenuItem,
-    InputLabel
+    InputLabel,
 } from "@mui/material";
 import api from "../services/api";
 
-moment.locale("pt-br");
+// Configura o Moment para português (pt-BR)
+moment.locale("pt-BR");
 const localizer = momentLocalizer(moment);
 
+// Mensagens personalizadas em português
 const mensagens = {
     date: "Data",
     time: "Hora",
     event: "Evento",
-    allDay: "Dia Inteiro",
+    allDay: "Dia Todo",
     week: "Semana",
-    work_week: "Semana de Trabalho",
+    work_week: "Eventos",
     day: "Dia",
     month: "Mês",
     previous: "Anterior",
@@ -35,7 +37,19 @@ const mensagens = {
     today: "Hoje",
     agenda: "Agenda",
     noEventsInRange: "Não há eventos neste período.",
-    showMore: (total) => `+ (${total}) eventos`
+    showMore: (total) => `+ (${total}) eventos`,
+};
+
+// Formatos para o calendário
+const formatos = {
+    agendaDateFormat: "DD/MM ddd",
+    weekdayFormat: "dddd",
+};
+
+// Função auxiliar para converter "HH:MM" em minutos
+const timeStringToMinutes = (timeStr) => {
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    return hours * 60 + minutes;
 };
 
 function CalendarioManutencoes() {
@@ -49,7 +63,7 @@ function CalendarioManutencoes() {
         maintenanceDate: "",
         startTime: "",
         endTime: "",
-        status: "Agendada"
+        status: "Agendada",
     });
 
     useEffect(() => {
@@ -65,36 +79,32 @@ function CalendarioManutencoes() {
                 {},
                 {
                     headers: {
-                        "X-Parse-Session-Token": localStorage.getItem("sessionToken")
-                    }
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
                 }
             );
 
             if (response.data.result) {
                 const formatados = response.data.result.map((m) => {
                     const isoString = m.maintenanceDate?.iso || "";
-                    const startTime = m.startTime || "12:00"; // Horário padrão caso não exista
-                    const endTime = m.endTime || "13:00"; // Horário padrão caso não exista
+                    const startTime = m.startTime || "12:00"; // Horário padrão, se não existir
+                    const endTime = m.endTime || "13:00"; // Horário padrão, se não existir
 
-                    // Criar uma data fixa sem que o fuso altere o dia
-                    const dataBase = moment.utc(isoString).startOf('day'); // Mantém a data original
+                    // Cria a data base a partir de ISO em UTC, sem converter para local,
+                    // para manter o dia exatamente como armazenado
+                    const dataBase = moment.utc(isoString).startOf("day");
 
-                    // Definir horário de início corretamente
                     const dataInicio = dataBase.clone().set({
                         hour: parseInt(startTime.split(":")[0], 10),
                         minute: parseInt(startTime.split(":")[1], 10),
-                        second: 0
+                        second: 0,
                     }).toDate();
 
-                    // Definir horário de término corretamente
                     const dataFim = dataBase.clone().set({
                         hour: parseInt(endTime.split(":")[0], 10),
                         minute: parseInt(endTime.split(":")[1], 10),
-                        second: 0
+                        second: 0,
                     }).toDate();
-
-                    console.log("ISO String:", isoString);
-                    console.log("Data Início Ajustada:", dataInicio);
 
                     return {
                         id: m.objectId,
@@ -103,17 +113,19 @@ function CalendarioManutencoes() {
                         end: dataFim,
                         startTime: m.startTime || "",
                         endTime: m.endTime || "",
-                        status: m.status || "Agendada"
+                        status: m.status || "Agendada",
+                        technicianId: m.technicianId?.objectId || "",
+                        technicianName: m.technicianId?.name || "Sem Técnico",
+                        maintenanceDate: moment.utc(isoString).format("YYYY-MM-DD"),
                     };
                 });
-
-
                 setEventos(formatados);
             }
         } catch (error) {
             console.error("Erro ao buscar manutenções:", error.message);
         }
     };
+
 
     const buscarGeradores = async () => {
         try {
@@ -122,8 +134,8 @@ function CalendarioManutencoes() {
                 {},
                 {
                     headers: {
-                        "X-Parse-Session-Token": localStorage.getItem("sessionToken")
-                    }
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
                 }
             );
             if (response.data.result) {
@@ -141,8 +153,8 @@ function CalendarioManutencoes() {
                 {},
                 {
                     headers: {
-                        "X-Parse-Session-Token": localStorage.getItem("sessionToken")
-                    }
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
                 }
             );
             if (response.data.result) {
@@ -154,6 +166,7 @@ function CalendarioManutencoes() {
     };
 
     const aoSelecionarDia = (infoSlot) => {
+        // Usa o horário local para a data selecionada
         const dataStr = moment(infoSlot.start).format("YYYY-MM-DD");
         setNovoEvento({
             generatorId: "",
@@ -161,41 +174,79 @@ function CalendarioManutencoes() {
             maintenanceDate: dataStr,
             startTime: "",
             endTime: "",
-            status: "Agendada"
+            status: "Agendada",
         });
         setModalAberto(true);
     };
 
     const aoEnviar = async (e) => {
         e.preventDefault();
+
+        if (!novoEvento.startTime || !novoEvento.endTime) {
+            alert("Informe o horário de início e término.");
+            return;
+        }
+
+        if (!novoEvento.technicianId) {
+            alert("Selecione um técnico.");
+            return;
+        }
+
+        const newStartMin = timeStringToMinutes(novoEvento.startTime);
+        const newEndMin = timeStringToMinutes(novoEvento.endTime);
+        if (newStartMin >= newEndMin) {
+            alert("O horário de início deve ser menor que o horário de término.");
+            return;
+        }
+
+        // Aqui filtramos os eventos que já estão agendados para o mesmo técnico e na mesma data (usando o horário local)
+        const eventosMesmoDia = eventos.filter(
+            (ev) =>
+                ev.technicianId === novoEvento.technicianId &&
+                ev.maintenanceDate === novoEvento.maintenanceDate &&
+                ev.status !== "Concluída" &&
+                ev.status !== "Cancelada"
+        );
+
+        for (const ev of eventosMesmoDia) {
+            const existStartMin = timeStringToMinutes(ev.startTime);
+            const existEndMin = timeStringToMinutes(ev.endTime);
+            const overlap = newStartMin < existEndMin && newEndMin > existStartMin;
+            if (overlap) {
+                alert("Este técnico já possui manutenção neste horário!");
+                return;
+            }
+        }
+
         try {
             const payload = {
                 generatorId: {
                     __type: "Pointer",
                     className: "Generators",
-                    objectId: novoEvento.generatorId
+                    objectId: novoEvento.generatorId,
                 },
                 technicianId: {
                     __type: "Pointer",
                     className: "Technicians",
-                    objectId: novoEvento.technicianId
+                    objectId: novoEvento.technicianId,
                 },
                 maintenanceDate: {
                     __type: "Date",
-                    iso: new Date(novoEvento.maintenanceDate).toISOString()
+                    iso: new Date(novoEvento.maintenanceDate).toISOString(),
                 },
                 startTime: novoEvento.startTime,
                 endTime: novoEvento.endTime,
-                status: novoEvento.status
+                status: novoEvento.status,
             };
 
             await api.post("/functions/createMaintenance", payload, {
                 headers: {
-                    "X-Parse-Session-Token": localStorage.getItem("sessionToken")
-                }
+                    "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                },
             });
 
-            buscarManutencoes();
+            // Atualiza a lista de manutenções para refletir o novo agendamento
+            await buscarManutencoes();
             setModalAberto(false);
         } catch (error) {
             console.error("Erro ao criar manutenção:", error.message);
@@ -207,15 +258,14 @@ function CalendarioManutencoes() {
     };
 
     const textoTooltip = (evento) => {
-        return `Técnico: ${evento.technicianName}\nCliente: ${evento.clientName}\nHorário: ${evento.startTime || "?"
-            } - ${evento.endTime || "?"}`;
+        return `Técnico: ${evento.technicianName}\nHorário: ${evento.startTime || "?"} - ${evento.endTime || "?"}`;
     };
 
     const coresPorStatus = {
         Agendada: ["#2196f3", "#1E88E5", "#1565C0"],
         "Em Andamento": ["#ff9800", "#F57C00", "#EF6C00"],
         Concluída: ["#4caf50", "#43A047", "#388E3C"],
-        Cancelada: ["#f44336", "#E53935", "#D32F2F"]
+        Cancelada: ["#f44336", "#E53935", "#D32F2F"],
     };
     const corPadrao = ["#9c27b0", "#8E24AA", "#7B1FA2"];
 
@@ -227,8 +277,8 @@ function CalendarioManutencoes() {
                 backgroundColor: paleta[index],
                 color: "#fff",
                 borderRadius: "4px",
-                margin: "3px 0"
-            }
+                margin: "3px 0",
+            },
         };
     };
 
@@ -245,11 +295,12 @@ function CalendarioManutencoes() {
                 onSelectSlot={aoSelecionarDia}
                 tooltipAccessor={textoTooltip}
                 eventPropGetter={estiloEvento}
+                formats={formatos}
                 style={{
                     height: "100%",
                     border: "1px solid #ddd",
                     borderRadius: "8px",
-                    padding: "10px"
+                    padding: "10px",
                 }}
             />
 
@@ -264,7 +315,7 @@ function CalendarioManutencoes() {
                         bgcolor: "#fff",
                         p: 4,
                         borderRadius: 2,
-                        boxShadow: 24
+                        boxShadow: 24,
                     }}
                 >
                     <Typography variant="h5" mb={2}>

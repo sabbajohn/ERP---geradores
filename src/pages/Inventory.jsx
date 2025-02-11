@@ -21,16 +21,25 @@ import {
     TextField,
     IconButton,
     Tooltip,
-    Box
+    Box,
 } from "@mui/material";
 import { Edit, Delete, RemoveShoppingCart } from "@mui/icons-material";
+
+// IMPORT do Autocomplete
+import { Autocomplete } from "@mui/material";
 
 const Inventory = () => {
     const sessionToken = localStorage.getItem("sessionToken");
 
+    // =========================
+    // ESTADOS
+    // =========================
     const [inventory, setInventory] = useState([]);
     const [filteredInventory, setFilteredInventory] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
+
+    // Lista de fornecedores (para o Autocomplete)
+    const [supplierList, setSupplierList] = useState([]);
 
     // Histórico
     const [history, setHistory] = useState([]);
@@ -43,7 +52,6 @@ const Inventory = () => {
     const [editingItem, setEditingItem] = useState(null);
 
     // Formulário do modal
-    // >>> SEM pricePerUnit <<<
     const [formData, setFormData] = useState({
         itemName: "",
         itemCode: "",
@@ -52,7 +60,6 @@ const Inventory = () => {
         costPrice: "",
         salePrice: "",
         profitMargin: "",
-        // se tiver category, minStockLevel, etc. adicione aqui
     });
 
     // Ordenação
@@ -63,9 +70,9 @@ const Inventory = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    // =====================================
+    // =========================
     // FETCH INVENTORY
-    // =====================================
+    // =========================
     const fetchInventory = async () => {
         try {
             const response = await api.post(
@@ -82,7 +89,9 @@ const Inventory = () => {
         }
     };
 
+    // =========================
     // FETCH HISTORY
+    // =========================
     const fetchInventoryHistory = async () => {
         try {
             const response = await api.post(
@@ -99,9 +108,30 @@ const Inventory = () => {
         }
     };
 
+    // =========================
+    // FETCH SUPPLIERS
+    // =========================
+    const fetchSuppliers = async () => {
+        try {
+            const response = await api.post(
+                "/functions/getAllSuppliers",
+                {},
+                { headers: { "X-Parse-Session-Token": sessionToken } }
+            );
+            if (response.data.result) {
+                // response.data.result deve ser um array de fornecedores
+                setSupplierList(response.data.result);
+            }
+        } catch (error) {
+            console.error("Erro ao buscar fornecedores:", error.message);
+        }
+    };
+
+    // Carregar dados iniciais
     useEffect(() => {
         fetchInventory();
         fetchInventoryHistory();
+        fetchSuppliers(); // Carrega lista de fornecedores
     }, []);
 
     // =====================================
@@ -155,7 +185,7 @@ const Inventory = () => {
     const handleCloseHistoryModal = () => setHistoryModalOpen(false);
 
     // =====================================
-    // EXPORTAR PDF (Remover pricePerUnit do corpo)
+    // EXPORTAR PDF
     // =====================================
     const exportToPDF = () => {
         if (inventory.length === 0) {
@@ -166,7 +196,6 @@ const Inventory = () => {
         const doc = new jsPDF();
         doc.text("Relatório de Estoque", 14, 10);
 
-        // Exemplo de colunas: Nome, Código, Quantidade, Custo, Venda, etc.
         doc.autoTable({
             startY: 20,
             head: [["Nome", "Código", "Quantidade", "Custo (R$)", "Venda (R$)"]],
@@ -217,7 +246,10 @@ const Inventory = () => {
             );
             fetchInventoryHistory();
         } catch (error) {
-            console.error("Erro ao salvar histórico:", error.response?.data || error.message);
+            console.error(
+                "Erro ao salvar histórico:",
+                error.response?.data || error.message
+            );
         }
     };
 
@@ -253,7 +285,10 @@ const Inventory = () => {
             );
             fetchInventory();
         } catch (error) {
-            console.error("Erro ao retirar item:", error.response?.data || error.message);
+            console.error(
+                "Erro ao retirar item:",
+                error.response?.data || error.message
+            );
         }
     };
 
@@ -271,7 +306,7 @@ const Inventory = () => {
                 quantity: item.quantity ? String(item.quantity) : "",
                 costPrice: item.costPrice ? String(item.costPrice) : "",
                 salePrice: item.salePrice ? String(item.salePrice) : "",
-                profitMargin: item.profitMargin ? String(item.profitMargin) : "",
+                profitMargin: "",
             });
         } else {
             // CRIAÇÃO
@@ -301,6 +336,7 @@ const Inventory = () => {
         }
         return "0";
     };
+
     const handleCostPriceChange = (e) => {
         const newCost = e.target.value;
         const margin = calculateProfitMargin(newCost, formData.salePrice);
@@ -310,6 +346,7 @@ const Inventory = () => {
             profitMargin: margin,
         });
     };
+
     const handleSalePriceChange = (e) => {
         const newSale = e.target.value;
         const margin = calculateProfitMargin(formData.costPrice, newSale);
@@ -327,13 +364,19 @@ const Inventory = () => {
         const formattedData = {
             itemName: formData.itemName,
             itemCode: formData.itemCode,
-            supplier: formData.supplier,
+            supplier: formData.supplier, // nome do fornecedor (pode ser livre ou da lista)
             quantity: parseInt(formData.quantity, 10) || 0,
             costPrice: parseFloat(formData.costPrice) || 0,
             salePrice: parseFloat(formData.salePrice) || 0,
             profitMargin: parseFloat(formData.profitMargin) || 0,
             lastRestocked: new Date().toISOString(),
         };
+
+        // Validação simples (campos obrigatórios):
+        if (!formattedData.itemName.trim() || !formattedData.itemCode.trim()) {
+            alert("Por favor, preencha ao menos o nome e código do item.");
+            return;
+        }
 
         try {
             if (editingItem) {
@@ -370,7 +413,10 @@ const Inventory = () => {
             fetchInventory();
             handleClose();
         } catch (error) {
-            console.error("Erro ao salvar item:", error.response?.data || error.message);
+            console.error(
+                "Erro ao salvar item:",
+                error.response?.data || error.message
+            );
         }
     };
 
@@ -420,6 +466,7 @@ const Inventory = () => {
             >
                 Ver Histórico de Movimentações
             </Button>
+
             <Button
                 variant="contained"
                 color="secondary"
@@ -429,6 +476,7 @@ const Inventory = () => {
                 Exportar Estoque (PDF)
             </Button>
 
+            {/* TABELA DE ESTOQUE */}
             <Box sx={{ overflowX: "auto", width: "100%" }}>
                 <TableContainer component={Paper} sx={{ mt: 3 }}>
                     <Table>
@@ -467,13 +515,9 @@ const Inventory = () => {
                                             : "↓"
                                         : ""}
                                 </TableCell>
-
-                                {/* REMOVIDO pricePerUnit */}
-                                {/* CAMPOS DE CUSTO, VENDA, MARGEM */}
                                 <TableCell>Custo (R$)</TableCell>
                                 <TableCell>Venda (R$)</TableCell>
                                 <TableCell>Margem (%)</TableCell>
-
                                 <TableCell>Fornecedor</TableCell>
                                 <TableCell>Ações</TableCell>
                             </TableRow>
@@ -488,11 +532,9 @@ const Inventory = () => {
                                         <TableCell>{item.itemName}</TableCell>
                                         <TableCell>{item.itemCode}</TableCell>
                                         <TableCell>{item.quantity}</TableCell>
-
                                         <TableCell>R$ {item.costPrice}</TableCell>
                                         <TableCell>R$ {item.salePrice}</TableCell>
-                                        <TableCell>{item.profitMargin}%</TableCell>
-
+                                        <TableCell>{/* Margem não exibida */}</TableCell>
                                         <TableCell>{item.supplier}</TableCell>
                                         <TableCell>
                                             <Tooltip title="Editar">
@@ -546,14 +588,12 @@ const Inventory = () => {
                     Anterior
                 </Button>
                 <Typography sx={{ mx: 2 }}>
-                    Página {currentPage} de{" "}
-                    {Math.ceil(filteredInventory.length / itemsPerPage)}
+                    Página {currentPage} de {Math.ceil(filteredInventory.length / itemsPerPage)}
                 </Typography>
                 <Button
                     variant="outlined"
                     disabled={
-                        currentPage >=
-                        Math.ceil(filteredInventory.length / itemsPerPage)
+                        currentPage >= Math.ceil(filteredInventory.length / itemsPerPage)
                     }
                     onClick={() => handlePageChange(currentPage + 1)}
                 >
@@ -568,22 +608,24 @@ const Inventory = () => {
                 </DialogTitle>
                 <DialogContent>
                     <TextField
-                        label="Nome do Item"
+                        label="Nome do Item *"
                         fullWidth
                         margin="dense"
                         value={formData.itemName}
                         onChange={(e) =>
                             setFormData({ ...formData, itemName: e.target.value })
                         }
+                        required
                     />
                     <TextField
-                        label="Código"
+                        label="Código *"
                         fullWidth
                         margin="dense"
                         value={formData.itemCode}
                         onChange={(e) =>
                             setFormData({ ...formData, itemCode: e.target.value })
                         }
+                        required
                     />
                     <TextField
                         label="Quantidade"
@@ -596,7 +638,7 @@ const Inventory = () => {
                         }
                     />
 
-                    {/* CAMPOS DE CUSTO, VENDA, MARGEM */}
+                    {/* CAMPOS DE CUSTO, VENDA */}
                     <TextField
                         label="Custo (R$)"
                         fullWidth
@@ -613,27 +655,40 @@ const Inventory = () => {
                         value={formData.salePrice}
                         onChange={handleSalePriceChange}
                     />
+                    {/* Campo Margem (%) desativado e sem exibir informação */}
                     <TextField
                         label="Margem (%)"
                         fullWidth
                         margin="dense"
                         type="number"
-                        value={formData.profitMargin}
-                        // Se não quiser edição manual, deixe readOnly
-                        InputProps={{ readOnly: true }}
-                        onChange={(e) =>
-                            setFormData({ ...formData, profitMargin: e.target.value })
-                        }
+                        value=""
+                        disabled
                     />
 
-                    <TextField
-                        label="Fornecedor"
-                        fullWidth
-                        margin="dense"
+                    {/* AUTOCOMPLETE PARA FORNECEDOR */}
+                    <Autocomplete
+                        freeSolo
+                        // A propriedade "options" deve ser um array de strings. 
+                        // Supondo que "supplierList" seja um array de objetos com { name, objectId, ... }
+                        options={supplierList.map((sup) => sup.name || "")}
+                        // value = valor atual do formData.supplier
                         value={formData.supplier}
-                        onChange={(e) =>
-                            setFormData({ ...formData, supplier: e.target.value })
-                        }
+                        onChange={(event, newValue) => {
+                            // Se for selecionado da lista, newValue será a string do fornecedor
+                            setFormData({ ...formData, supplier: newValue || "" });
+                        }}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Fornecedor"
+                                fullWidth
+                                margin="dense"
+                                // Quando for digitado manualmente, precisamos atualizar o state também
+                                onChange={(e) =>
+                                    setFormData({ ...formData, supplier: e.target.value })
+                                }
+                            />
+                        )}
                     />
                 </DialogContent>
                 <DialogActions>

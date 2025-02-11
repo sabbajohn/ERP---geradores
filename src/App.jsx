@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { IconButton, Drawer, useMediaQuery } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+
+// Importa as duas versões da Sidebar:
 import Sidebar from "./components/Sidebar";
+import CalendarSidebar from "./components/SidebarCalendar";
+
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Generators from "./pages/Generators";
@@ -17,21 +23,32 @@ import DemandCalendar from "./pages/DemandCalendar";
 import DayDetails from "./pages/DayDetails";
 import Inventory from "./pages/Inventory";
 import ChecklistLocacao from "./pages/ChecklistLocacao";
-
-// **Import do novo componente**:
 import ChecklistsList from "./pages/ChecklistsList";
+import GeneratorDetails from "./pages/GeneratorDetails";
+import Suppliers from "./pages/Suppliers";
 
+// Rota protegida (se não houver token, redireciona para /login)
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("sessionToken");
-
   return token ? children : <Navigate to="/login" replace />;
 }
 
 function AppContent() {
   const location = useLocation();
 
-  // Rotas onde o Sidebar aparece
-  const showSidebar = [
+  // Verifica o role do usuário (supondo que esteja salvo no localStorage)
+  const role = localStorage.getItem("role");
+  const isAdmin = role === "admin";
+
+  // Determina se estamos em um dispositivo mobile (largura <= 768px)
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Controla se o Drawer (menu lateral mobile) está aberto
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const handleToggleDrawer = () => setDrawerOpen(!drawerOpen);
+
+  // Defina as rotas onde a Sidebar deve aparecer
+  const showSidebarPaths = [
     "/dashboard",
     "/customers",
     "/generators",
@@ -41,20 +58,70 @@ function AppContent() {
     "/technicians",
     "/calendar",
     "/inventory",
+    "/suppliers",
     "/ChecklistLocacao",
-    // Adicionar "/checklists" se quiser exibir a sidebar nessa página
     "/checklists",
-  ].includes(location.pathname);
+    "/tecnico",
+    "/agenda"
+  ];
+  const showSidebar = showSidebarPaths.some((path) =>
+    location.pathname.startsWith(path)
+  );
+
+  // Se estivermos na tela de calendário, usaremos a Sidebar específica
+  const isCalendarScreen = location.pathname.startsWith("/calendar");
 
   return (
     <div className={`app-container ${showSidebar ? "" : "no-sidebar"}`}>
-      {showSidebar && <Sidebar />}
+      {/* Renderiza a Sidebar fixa para telas grandes apenas se o usuário for admin */}
+      {showSidebar && isAdmin && !isMobile && (
+        isCalendarScreen ? <CalendarSidebar /> : <Sidebar />
+      )}
+
+      {/* Em mobile, exibe o botão hamburger (caso o Drawer esteja fechado) apenas para admin */}
+      {showSidebar && isAdmin && isMobile && !drawerOpen && (
+        <IconButton
+          onClick={handleToggleDrawer}
+          sx={{
+            position: "fixed",
+            top: 16,
+            left: 16,
+            zIndex: 2000,
+            backgroundColor: "#1f2937",
+            color: "#fff",
+            "&:hover": { backgroundColor: "#374151" },
+          }}
+        >
+          <MenuIcon />
+        </IconButton>
+      )}
+
+      {/* Drawer para mobile apenas se o usuário for admin */}
+      {showSidebar && isAdmin && (
+        <Drawer
+          open={drawerOpen}
+          onClose={handleToggleDrawer}
+          PaperProps={{
+            sx: {
+              width: 240,
+              backgroundColor: "#1f2937",
+              color: "#fff",
+            },
+          }}
+        >
+          {isCalendarScreen ? (
+            <CalendarSidebar onClose={handleToggleDrawer} />
+          ) : (
+            <Sidebar onClose={handleToggleDrawer} />
+          )}
+        </Drawer>
+      )}
+
+      {/* Área principal: rotas da aplicação */}
       <main className="main-content">
         <Routes>
-          {/* Login acessível a todos */}
+          {/* Rota de login (pública) */}
           <Route path="/login" element={<Login />} />
-
-          {/* Redirecionar para login se acessar a raiz sem estar autenticado */}
           <Route path="/" element={<Navigate to="/login" />} />
 
           {/* Rotas protegidas */}
@@ -79,6 +146,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Generators />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/generator/:id"
+            element={
+              <ProtectedRoute>
+                <GeneratorDetails />
               </ProtectedRoute>
             }
           />
@@ -178,13 +253,19 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-
-          {/* Nova rota: /checklists */}
           <Route
             path="/checklists"
             element={
               <ProtectedRoute>
                 <ChecklistsList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <ProtectedRoute>
+                <Suppliers />
               </ProtectedRoute>
             }
           />

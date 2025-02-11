@@ -21,34 +21,45 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemIcon,
   Tooltip,
-  Avatar,
+  Paper as MuiPaper,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import InfoIcon from "@mui/icons-material/Info";
 import CloseIcon from "@mui/icons-material/Close";
-import DownloadForOfflineIcon from "@mui/icons-material/DownloadForOffline";
+import CheckIcon from "@mui/icons-material/Check";
 import api from "../services/api";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import ServiceReport from "../components/ServiceReport"; // Certifique-se de que o caminho está correto
 
-/**
- * Componente que lista relatórios e exibe detalhes completos em um modal
- * para o administrador visualizar tudo que o técnico preencheu.
- */
+// Função utilitária para formatar os itens do checklist
+const formatChecklistItem = (item) => {
+  // Remove espaços desnecessários e substitui "verificar" por "verificado" (ignora case)
+  let newItem = item.trim().replace(/^verificar/i, "verificado");
+  // Insere espaço antes das letras maiúsculas (caso esteja em camelCase)
+  newItem = newItem.replace(/([A-Z])/g, " $1").trim();
+  // Capitaliza a primeira letra
+  return newItem.charAt(0).toUpperCase() + newItem.slice(1);
+};
+
 function Reports() {
   const [filters, setFilters] = useState({ technician: "", generator: "" });
   const [allReports, setAllReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
 
-  // Estado para o "modal de detalhes"
+  // Estados para os modais
   const [selectedReport, setSelectedReport] = useState(null);
   const [openDetail, setOpenDetail] = useState(false);
-
-  // Campos para exibir anexos / imagens
+  const [openChecklistModal, setOpenChecklistModal] = useState(false);
+  const [selectedChecklist, setSelectedChecklist] = useState(null);
   const [attachments, setAttachments] = useState([]);
+
+  // Estados para PDF
+  const [pdfReportData, setPdfReportData] = useState(null); // Dados para o PDF
+  const [showPdfDownloadLink, setShowPdfDownloadLink] = useState(false); // Controle do botão de download
 
   useEffect(() => {
     loadReports();
@@ -61,12 +72,14 @@ function Reports() {
         "/functions/getAllMaintenanceReports",
         {},
         {
-          headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") }
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
         }
       );
       if (resp.data.result) {
         const fetched = resp.data.result;
-        console.log("Relatórios recebidos do backend:", fetched); // <--- Adicione este log
+        console.log("Relatórios recebidos do backend:", fetched);
         setAllReports(fetched);
         setFilteredReports(fetched);
       }
@@ -75,7 +88,6 @@ function Reports() {
       alert("Erro ao buscar relatórios.");
     }
   };
-
 
   // Filtro local
   const handleFilterChange = (e) => {
@@ -89,47 +101,111 @@ function Reports() {
 
     const temp = allReports.filter((r) => {
       const techName = r.technicianUser?.username?.toLowerCase() || "";
-      const genName = r.generatorId?.name?.toLowerCase() || "";
-      return techName.includes(lowerTech) && genName.includes(lowerGen);
+      const genSerial = r.generatorId?.serialNumber?.toLowerCase() || "";
+      return techName.includes(lowerTech) && genSerial.includes(lowerGen);
     });
     setFilteredReports(temp);
   };
 
-  // Abre modal de detalhes
+  // Abre modal de detalhes do relatório
   const handleViewDetails = (rep) => {
     setSelectedReport(rep);
     setAttachments(rep.attachments || []);
     setOpenDetail(true);
+    // Reseta os dados do PDF e o flag sempre que abre o modal
+    setPdfReportData(null);
+    setShowPdfDownloadLink(false);
   };
 
   const handleCloseDetail = () => {
     setOpenDetail(false);
     setSelectedReport(null);
     setAttachments([]);
+    // Opcionalmente, limpe também os dados do PDF
+    setPdfReportData(null);
+    setShowPdfDownloadLink(false);
   };
 
-  // Exportar PDF
-  const handleExportPDF = () => {
-    const input = document.getElementById("report-detail");
+  // Abre modal de checklist
+  const handleOpenChecklistModal = (rep) => {
+    setSelectedChecklist(rep);
+    setOpenChecklistModal(true);
+  };
 
-    html2canvas(input, { scale: 2 }).then((canvas) => {
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "pt",
-        format: "a4"
+  // Função para converter uma URL para base64
+  const getBase64ImageFromUrl = async (url) => {
+    try {
+      const response = await fetch(url, { mode: "cors" });
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
+    } catch (error) {
+      console.error("Erro ao converter imagem:", url, error);
+      return url; // se falhar, retorna a própria URL
+    }
+  };
 
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+  // Atualiza os dados para o PDF pré-convertendo as imagens para base64
+  const handleExportPDF = async () => {
+    if (!selectedReport) {
+      alert("Nenhum relatório selecionado.");
+      return;
+    }
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Relatorio_${selectedReport.objectId}.pdf`);
-    }).catch((error) => {
+    try {
+      // Chama a Cloud Function para obter todos os dados necessários
+      const response = await api.post(
+        "/functions/getMaintenanceReportDetails",
+        { reportId: selectedReport.objectId },
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
+
+      if (!(response.data && response.data.result)) {
+        alert("Falha ao obter os dados do relatório para gerar o PDF.");
+        return;
+      }
+
+      const reportData = response.data.result;
+
+      // Se existir checklistText, substitui "verificar" por "verificado" em cada item
+      if (reportData.checklistText) {
+        const checklistItems = reportData.checklistText
+          .split(",")
+          .map((item) => item.trim().replace(/^verificar/i, "verificado"));
+        reportData.checklistText = checklistItems.join(", ");
+      }
+
+      // Pré-converte as imagens (assinaturas e anexos) para base64, se necessário:
+      if (reportData.technicianSignature && !reportData.technicianSignature.startsWith("data:")) {
+        reportData.technicianSignature = await getBase64ImageFromUrl(reportData.technicianSignature);
+      }
+      if (reportData.customerSignature && !reportData.customerSignature.startsWith("data:")) {
+        reportData.customerSignature = await getBase64ImageFromUrl(reportData.customerSignature);
+      }
+      if (reportData.attachments && Array.isArray(reportData.attachments)) {
+        for (let i = 0; i < reportData.attachments.length; i++) {
+          const att = reportData.attachments[i];
+          if (att.fileUrl && !att.fileUrl.startsWith("data:")) {
+            reportData.attachments[i].fileUrl = await getBase64ImageFromUrl(att.fileUrl);
+          }
+        }
+      }
+
+      console.log("Dados para PDF (imagens convertidas):", reportData);
+      setPdfReportData(reportData); // Armazena os dados no estado
+      setShowPdfDownloadLink(true); // Exibe o botão de download
+    } catch (error) {
       console.error("Erro ao gerar PDF:", error);
-      alert("Falha ao gerar PDF. Tente novamente.");
-    });
+      alert("Erro ao gerar PDF. Tente novamente.");
+    }
   };
 
   return (
@@ -160,7 +236,7 @@ function Reports() {
               name="generator"
               value={filters.generator}
               onChange={handleFilterChange}
-              placeholder="Nome do gerador"
+              placeholder="Serial Number do gerador"
             />
           </Grid>
         </Grid>
@@ -181,131 +257,108 @@ function Reports() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell><strong>Gerador</strong></TableCell>
-              <TableCell><strong>Data Criação</strong></TableCell>
-              <TableCell><strong>Técnico</strong></TableCell>
-              <TableCell><strong>Descrição</strong></TableCell>
-              <TableCell><strong>Km</strong></TableCell>
-              <TableCell><strong>Checklist</strong></TableCell>
-              <TableCell><strong>Assinaturas</strong></TableCell> {/* Nova Coluna */}
-              <TableCell align="center"><strong>Ações</strong></TableCell>
+              <TableCell>
+                <strong>Gerador</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Data Criação</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Técnico</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Descrição</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Horímetro</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Checklist</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Assinaturas</strong>
+              </TableCell>
+              <TableCell align="center">
+                <strong>Ações</strong>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredReports.map((rep) => {
-              const genName = rep.generatorId?.name || "Sem gerador";
+              const genSerial = rep.generatorId?.serialNumber || "Sem gerador";
               const techName = rep.technicianUser?.username || "Desconhecido";
 
-              // Formatação da data de criação
               let iso = rep.createdAt?.iso || rep.createdAt;
               let createDate = "";
               if (iso) {
                 createDate = new Date(iso).toLocaleString("pt-BR");
               }
 
-              // Preparar o conteúdo do checklist para o tooltip
-              const checklistItems = rep.checklistText
-                ? rep.checklistText.split(",").map(item => item.trim())
-                : [];
-
-              // Preparar assinaturas
-              const technicianSignatureURL = rep.technicianSignature
-                ? `${rep.technicianSignature}`
-                : null;
-
-              const customerSignatureURL = rep.customerSignature
-                ? `${rep.customerSignature}`
-                : null;
+              const horimetroValue =
+                rep.horimetro ||
+                (rep.checklistInputs &&
+                  rep.checklistInputs.find((input) => input.key === "horimetro")?.value) ||
+                "N/A";
 
               return (
                 <TableRow key={rep.objectId}>
-                  <TableCell>{genName}</TableCell>
+                  <TableCell>{genSerial}</TableCell>
                   <TableCell>{createDate}</TableCell>
                   <TableCell>{techName}</TableCell>
                   <TableCell>{rep.reportDescription}</TableCell>
-                  <TableCell>{rep.mileage}</TableCell>
+                  <TableCell>{horimetroValue}</TableCell>
                   <TableCell>
-                    <Tooltip
-                      title={
-                        checklistItems.length > 0 ? (
-                          <List>
-                            {checklistItems.map((item, idx) => (
-                              <ListItem key={idx}>
-                                <ListItemText primary={item} />
-                              </ListItem>
-                            ))}
-                            {rep.checklistInputs && rep.checklistInputs.length > 0 && (
-                              <>
-                                <ListItem>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-                                    Campos de Entrada:
-                                  </Typography>
-                                </ListItem>
-                                {rep.checklistInputs.map((input, idx) => (
-                                  <ListItem key={idx}>
-                                    <ListItemText
-                                      primary={`${input.key
-                                        .replace(/([A-Z])/g, ' $1')
-                                        .replace(/^./, str => str.toUpperCase())}: ${input.value}`}
-                                    />
-                                  </ListItem>
-                                ))}
-                              </>
-                            )}
-                          </List>
-                        ) : (
-                          "Nenhum item no checklist."
-                        )
-                      }
-                      arrow
-                      placement="top"
-                      interactive
-                    >
-                      <IconButton color="info" size="small" title="Ver Checklist">
+                    <Tooltip title="Clique para ver o checklist" arrow>
+                      <IconButton
+                        color="info"
+                        size="small"
+                        onClick={() => handleOpenChecklistModal(rep)}
+                      >
                         <InfoIcon />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
-                  {/* Nova Coluna: Assinaturas */}
                   <TableCell>
                     <Tooltip
                       title={
                         <Box>
-                          {technicianSignatureURL && (
+                          {rep.technicianSignature && (
                             <Box mb={1} textAlign="center">
-                              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Assinatura do Técnico</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+                                Assinatura do Técnico
+                              </Typography>
                               <img
-                                src={technicianSignatureURL}
+                                src={rep.technicianSignature}
                                 alt="Assinatura do Técnico"
                                 style={{ maxWidth: "200px", height: "auto" }}
                               />
                             </Box>
                           )}
-                          {customerSignatureURL && (
+                          {rep.customerSignature && (
                             <Box textAlign="center">
-                              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>Assinatura do Cliente</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+                                Assinatura do Cliente
+                              </Typography>
                               <img
-                                src={customerSignatureURL}
+                                src={rep.customerSignature}
                                 alt="Assinatura do Cliente"
                                 style={{ maxWidth: "200px", height: "auto" }}
                               />
                             </Box>
                           )}
-                          {!technicianSignatureURL && !customerSignatureURL && (
+                          {!rep.technicianSignature && !rep.customerSignature && (
                             <Typography>Nenhuma assinatura disponível.</Typography>
                           )}
                         </Box>
                       }
                       arrow
                       placement="right"
-                      interactive
                     >
-                      <IconButton color="info" size="small" title="Ver Checklist">
+                      <IconButton color="info" size="small">
                         <InfoIcon />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
-                  {/* Fim da Coluna: Assinaturas */}
                   <TableCell align="center">
                     <IconButton
                       color="primary"
@@ -314,7 +367,6 @@ function Reports() {
                     >
                       <VisibilityIcon />
                     </IconButton>
-
                   </TableCell>
                 </TableRow>
               );
@@ -324,12 +376,7 @@ function Reports() {
       </TableContainer>
 
       {/* Modal de Detalhes do Relatório */}
-      <Dialog
-        open={openDetail}
-        onClose={handleCloseDetail}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={openDetail} onClose={handleCloseDetail} maxWidth="md" fullWidth>
         <DialogTitle>
           Detalhes do Relatório
           <IconButton
@@ -343,7 +390,7 @@ function Reports() {
         <DialogContent dividers id="report-detail">
           {selectedReport ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {/* Cabeçalho do Relatório */}
+              {/* Cabeçalho */}
               <Box sx={{ textAlign: "center", mb: 2 }}>
                 <Typography variant="h5" sx={{ fontWeight: "bold" }}>
                   Ordem de Serviço Digital
@@ -352,158 +399,147 @@ function Reports() {
                 <Typography variant="body2">Telefone: (91) 4042-2194</Typography>
                 <Typography variant="body2">CNPJ: 45.486.401/0001-31</Typography>
                 <Typography variant="body2">Email: servicosepecas@energimaq.com.br</Typography>
-                <Typography variant="body2">Endereço: Rodovia Br 316 3262 Almirante Barroso, Castanheira, Belém PA, Cep:66645-00</Typography>
+                <Typography variant="body2">
+                  Endereço: Rodovia Br 316 3262 Almirante Barroso, Castanheira, Belém PA, Cep:66645-00
+                </Typography>
               </Box>
 
-              {/* Informações do Cliente */}
-              <Paper sx={{ p: 2 }}>
+              {/* Cliente */}
+              <MuiPaper sx={{ p: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Informações do Cliente
                 </Typography>
-                <Typography><strong>Nome do Cliente:</strong> {selectedReport.customerId?.name || "N/A"}</Typography>
-                <Typography><strong>E-mail:</strong> {selectedReport.customerId?.email || "-"}</Typography>
-                <Typography><strong>Endereço:</strong> {selectedReport.customerId?.address || "-"}</Typography>
-                <Typography><strong>Telefone:</strong> {selectedReport.customerId?.phone || "-"}</Typography>
-              </Paper>
+                <Typography>
+                  <strong>Nome do Cliente:</strong>{" "}{selectedReport.customerId?.name || "N/A"}
+                </Typography>
+                <Typography>
+                  <strong>E-mail:</strong>{" "}{selectedReport.customerId?.email || "-"}
+                </Typography>
+                <Typography>
+                  <strong>Endereço:</strong>{" "}{selectedReport.customerId?.address || "-"}
+                </Typography>
+                <Typography>
+                  <strong>Telefone:</strong>{" "}{selectedReport.customerId?.phone || "-"}
+                </Typography>
+              </MuiPaper>
 
-              {/* Informações do Gerador */}
-              <Paper sx={{ p: 2 }}>
+              {/* Gerador */}
+              <MuiPaper sx={{ p: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Informações do Gerador
                 </Typography>
-                <Typography><strong>Nome do Gerador:</strong> {selectedReport.generatorId?.name || "N/A"}</Typography>
-                <Typography><strong>Localização do Gerador:</strong> {selectedReport.generatorId?.location || "N/A"}</Typography>
-              </Paper>
+                <Typography>
+                  <strong>Serial Number:</strong>{" "}{selectedReport.generatorId?.serialNumber || "N/A"}
+                </Typography>
+                <Typography>
+                  <strong>Localização do Gerador:</strong>{" "}{selectedReport.generatorId?.location || "N/A"}
+                </Typography>
+              </MuiPaper>
 
-              {/* Detalhes da OS */}
-              <Paper sx={{ p: 2 }}>
+              {/* Ordem de Serviço */}
+              <MuiPaper sx={{ p: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Detalhes da Ordem de Serviço
                 </Typography>
                 <Grid container spacing={2}>
-                  {/* Se existir, exiba os campos relevantes */}
-                  {/* Exemplo baseado no retorno fornecido */}
                   <Grid item xs={6}>
-                    <Typography><strong>Data de Check-in:</strong> {selectedReport.checkInTime ? new Date(selectedReport.checkInTime).toLocaleString("pt-BR") : "N/A"}</Typography>
+                    <Typography>
+                      <strong>Data de Check-in:</strong>{" "}{selectedReport.checkInTime
+                        ? new Date(selectedReport.checkInTime).toLocaleString("pt-BR")
+                        : "N/A"}
+                    </Typography>
                   </Grid>
                   <Grid item xs={6}>
-                    <Typography><strong>Data de Check-out:</strong> {selectedReport.checkOutTime ? new Date(selectedReport.checkOutTime).toLocaleString("pt-BR") : "N/A"}</Typography>
+                    <Typography>
+                      <strong>Data de Check-out:</strong>{" "}{selectedReport.checkOutTime
+                        ? new Date(selectedReport.checkOutTime).toLocaleString("pt-BR")
+                        : "N/A"}
+                    </Typography>
                   </Grid>
                   <Grid item xs={6}>
-                    <Typography><strong>Duração:</strong> {selectedReport.duration || "N/A"}</Typography>
+                    <Typography>
+                      <strong>Duração:</strong>{" "}{selectedReport.duration || "N/A"}
+                    </Typography>
                   </Grid>
                   <Grid item xs={6}>
-                    <Typography><strong>Quilometragem:</strong> {selectedReport.mileage || "N/A"}</Typography>
+                    <Typography>
+                      <strong>Horímetro:</strong>{" "}{selectedReport.horimetro ||
+                        (selectedReport.checklistInputs &&
+                          selectedReport.checklistInputs.find((input) => input.key === "horimetro")?.value) ||
+                        "N/A"}
+                    </Typography>
                   </Grid>
                 </Grid>
-              </Paper>
+              </MuiPaper>
 
-              {/* Relato de Execução */}
-              <Paper sx={{ p: 2 }}>
+              {/* Relato */}
+              <MuiPaper sx={{ p: 2 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Relato de Execução
                 </Typography>
                 <Typography>
                   {selectedReport.reportDescription || "Sem relato de execução."}
                 </Typography>
-              </Paper>
+              </MuiPaper>
 
-              {/* Checklist de Itens Marcados */}
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
-                  Checklist Gerador de Energia - Itens Marcados
-                </Typography>
-                {selectedReport.checklistText ? (
-                  <Tooltip
-                    title={
-                      <List>
-                        {selectedReport.checklistText.split(",").map((item, idx) => (
-                          <ListItem key={idx}>
-                            <ListItemText primary={item.trim()} />
-                          </ListItem>
-                        ))}
-                        {selectedReport.checklistInputs && selectedReport.checklistInputs.length > 0 && (
-                          <>
-                            <ListItem>
-                              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-                                Campos de Entrada:
-                              </Typography>
-                            </ListItem>
-                            {selectedReport.checklistInputs.map((input, idx) => (
-                              <ListItem key={idx}>
-                                <ListItemText
-                                  primary={`${input.key
-                                    .replace(/([A-Z])/g, ' $1')
-                                    .replace(/^./, str => str.toUpperCase())}: ${input.value}`}
-                                />
-                              </ListItem>
-                            ))}
-                          </>
-                        )}
-                      </List>
-                    }
-                    arrow
-                    placement="right"
-                    interactive
-                  >
-                    <Button variant="outlined" startIcon={<InfoIcon />}>
-                      Ver Checklist
-                    </Button>
-                  </Tooltip>
-                ) : (
-                  <Typography>Nenhum item no checklist.</Typography>
-                )}
-              </Paper>
+              {/* Checklist */}
+              <MuiPaper sx={{ p: 2, textAlign: "center" }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<InfoIcon />}
+                  onClick={() => handleOpenChecklistModal(selectedReport)}
+                >
+                  Ver Checklist
+                </Button>
+              </MuiPaper>
 
-              {/* Peças Usadas */}
+              {/* Peças */}
               {selectedReport.partsUsed && selectedReport.partsUsed.length > 0 && (
-                <Paper sx={{ p: 2 }}>
+                <MuiPaper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Peças Trocadas
                   </Typography>
                   <List>
                     {selectedReport.partsUsed.map((p, idx) => (
                       <ListItem key={idx} divider>
-                        <ListItemText
-                          primary={`${p.itemName} (x${p.quantity})`}
-                        />
+                        <ListItemText primary={`${p.itemName} (x${p.quantity})`} />
                       </ListItem>
                     ))}
                   </List>
-                </Paper>
+                </MuiPaper>
               )}
 
               {/* Assinatura do Técnico */}
               {selectedReport.technicianSignature && selectedReport.technicianSignature !== "" && (
-                <Paper sx={{ p: 2 }}>
+                <MuiPaper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Assinatura do Técnico
                   </Typography>
                   <img
-                    src={`${selectedReport.technicianSignature}`}
+                    src={selectedReport.technicianSignature}
                     alt="Assinatura do Técnico"
                     style={{ maxWidth: "100%", height: "auto" }}
                   />
-                </Paper>
+                </MuiPaper>
               )}
 
               {/* Assinatura do Cliente */}
               {selectedReport.customerSignature && selectedReport.customerSignature !== "" && (
-                <Paper sx={{ p: 2 }}>
+                <MuiPaper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Assinatura do Cliente
                   </Typography>
                   <img
-                    src={`${selectedReport.customerSignature}`}
+                    src={selectedReport.customerSignature}
                     alt="Assinatura do Cliente"
                     style={{ maxWidth: "100%", height: "auto" }}
                   />
-                </Paper>
+                </MuiPaper>
               )}
 
-              {/* Anexos / Imagens */}
+              {/* Anexos */}
               {attachments.length > 0 && (
-                <Paper sx={{ p: 2 }}>
+                <MuiPaper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Fotos
                   </Typography>
@@ -517,24 +553,110 @@ function Reports() {
                       />
                     </Box>
                   ))}
-                </Paper>
+                </MuiPaper>
               )}
             </Box>
           ) : (
             <Typography>Selecione um relatório</Typography>
           )}
         </DialogContent>
+
+        {/* DialogActions com PDFDownloadLink */}
         <DialogActions>
+          {/* Botão para gerar os dados do PDF */}
           <Button
-            onClick={handleExportPDF}
             color="secondary"
             variant="contained"
-            disabled={!selectedReport}
             startIcon={<DownloadIcon />}
+            onClick={handleExportPDF}
           >
-            Exportar PDF
+            Gerar PDF
           </Button>
+
+          {/* Renderiza o botão de download do PDF somente se os dados estiverem disponíveis */}
+          {showPdfDownloadLink && pdfReportData && (
+            <PDFDownloadLink
+              document={<ServiceReport reportData={pdfReportData} />}
+              fileName="relatorio_servico.pdf"
+            >
+              {({ loading }) => (
+                <Button
+                  color="secondary"
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  disabled={loading}
+                  onClick={() => {
+                    // Aguarda 5 segundos antes de ocultar o botão, para garantir o download
+                    setTimeout(() => {
+                      setShowPdfDownloadLink(false);
+                      setPdfReportData(null);
+                    }, 5000);
+                  }}
+                >
+                  {loading ? "Gerando PDF..." : "Baixar PDF"}
+                </Button>
+              )}
+            </PDFDownloadLink>
+          )}
           <Button onClick={handleCloseDetail} color="primary">
+            Fechar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Checklist */}
+      <Dialog
+        open={openChecklistModal}
+        onClose={() => setOpenChecklistModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Detalhes do Checklist</DialogTitle>
+        <DialogContent dividers>
+          {selectedChecklist ? (
+            <Box>
+              {selectedChecklist.checklistText ? (
+                <List>
+                  {selectedChecklist.checklistText.split(",").map((item, idx) => {
+                    // Aqui usamos a função utilitária para formatar cada item
+                    const newItem = formatChecklistItem(item);
+                    return (
+                      <ListItem key={idx}>
+                        <ListItemIcon>
+                          <CheckIcon color="success" />
+                        </ListItemIcon>
+                        <ListItemText primary={newItem} />
+                      </ListItem>
+                    );
+                  })}
+                  {selectedChecklist.checklistInputs &&
+                    selectedChecklist.checklistInputs.length > 0 && (
+                      <>
+                        <ListItem>
+                          <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+                            Campos de Entrada:
+                          </Typography>
+                        </ListItem>
+                        {selectedChecklist.checklistInputs.map((input, idx) => (
+                          <ListItem key={idx}>
+                            <ListItemText
+                              primary={`${input.key
+                                .replace(/([A-Z])/g, " $1")
+                                .replace(/^./, (str) => str.toUpperCase())}: ${input.value}`}
+                            />
+                          </ListItem>
+                        ))}
+                      </>
+                    )}
+                </List>
+              ) : (
+                <Typography>Nenhum item no checklist.</Typography>
+              )}
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenChecklistModal(false)} color="primary" variant="contained">
             Fechar
           </Button>
         </DialogActions>

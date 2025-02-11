@@ -24,6 +24,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import InputMask from "react-input-mask";
 import api from "../services/api";
 
 function Customers() {
@@ -36,6 +37,7 @@ function Customers() {
   const itemsPerPage = 10;
   const [formData, setFormData] = useState({
     name: "",
+    document: "",
     phone: "",
     email: "",
     address: "",
@@ -44,9 +46,13 @@ function Customers() {
   // Buscar clientes do backend
   const fetchCustomers = async () => {
     try {
-      const response = await api.post("/functions/getAllCustomers", {}, {
-        headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") },
-      });
+      const response = await api.post(
+        "/functions/getAllCustomers",
+        {},
+        {
+          headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") },
+        }
+      );
 
       if (response.data.result) {
         setCustomers(response.data.result);
@@ -62,18 +68,18 @@ function Customers() {
   }, []);
 
   const handleOpen = (customer = null) => {
-    console.log("Abrindo modal para:", customer ? "Editar" : "Adicionar");
     if (customer) {
       setEditingCustomer(customer);
       setFormData({
         name: customer.name,
+        document: customer.document || "",
         phone: customer.phone,
         email: customer.email,
         address: customer.address || "",
       });
     } else {
       setEditingCustomer(null);
-      setFormData({ name: "", phone: "", email: "", address: "" });
+      setFormData({ name: "", document: "", phone: "", email: "", address: "" });
     }
     setOpen(true);
   };
@@ -83,19 +89,26 @@ function Customers() {
     setOpen(false);
   };
 
-  // Salvar (Adicionar ou Editar) Cliente
+  // Salvar (Adicionar ou Editar) Cliente, enviando documento e telefone formatados (somente dígitos)
   const handleSave = async () => {
+    // Remove qualquer caractere não numérico
+    const formattedFormData = {
+      ...formData,
+      document: formData.document.replace(/\D/g, ""),
+      phone: formData.phone.replace(/\D/g, ""),
+    };
+
     try {
       if (editingCustomer) {
         await api.post(
           "/functions/updateCustomer",
-          { customerId: editingCustomer.objectId, ...formData },
+          { customerId: editingCustomer.objectId, ...formattedFormData },
           { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
         );
       } else {
         await api.post(
           "/functions/createCustomer",
-          formData,
+          formattedFormData,
           { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
         );
       }
@@ -122,7 +135,7 @@ function Customers() {
     }
   };
 
-  // 🔎 Corrigido: Filtrar clientes corretamente
+  // Filtrar clientes
   const handleSearch = (query) => {
     setSearchQuery(query);
     if (!query) {
@@ -144,7 +157,7 @@ function Customers() {
     currentPage * itemsPerPage
   );
 
-  // 📄 Exportar para PDF (removido "document")
+  // Exportar para PDF
   const exportToPDF = () => {
     if (customers.length === 0) {
       alert("Nenhum cliente para exportar.");
@@ -232,6 +245,7 @@ function Customers() {
           </TableBody>
         </Table>
       </TableContainer>
+
       {/* Modal para adicionar/editar clientes */}
       <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
         <DialogTitle>{editingCustomer ? "Editar Cliente" : "Adicionar Cliente"}</DialogTitle>
@@ -243,20 +257,34 @@ function Customers() {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
-          <TextField
-            label="CNPJ/CPF"
-            fullWidth
-            margin="dense"
+
+          {/* Máscara dinâmica para CPF/CNPJ */}
+          <InputMask
+            mask={
+              // Se o número de dígitos (sem formatação) for maior que 11, aplica máscara de CNPJ
+              formData.document.replace(/\D/g, "").length > 11
+                ? "99.999.999/9999-99"
+                : "999.999.999-99"
+            }
             value={formData.document}
             onChange={(e) => setFormData({ ...formData, document: e.target.value })}
-          />
-          <TextField
-            label="Telefone"
-            fullWidth
-            margin="dense"
+          >
+            {(inputProps) => (
+              <TextField {...inputProps} label="CPF/CNPJ" fullWidth margin="dense" />
+            )}
+          </InputMask>
+
+          {/* Máscara para telefone com DDD */}
+          <InputMask
+            mask="(99) 99999-9999"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          />
+          >
+            {(inputProps) => (
+              <TextField {...inputProps} label="Telefone" fullWidth margin="dense" />
+            )}
+          </InputMask>
+
           <TextField
             label="E-mail"
             fullWidth
@@ -281,7 +309,6 @@ function Customers() {
           </Button>
         </DialogActions>
       </Dialog>
-
     </Container>
   );
 }

@@ -1,0 +1,122 @@
+/* Container principal da sidebar */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 240px;
+    height: 100vh;
+    background-color: #1f2937;
+    /* fundo escuro */
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    z-index: 999;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+    padding: 1rem;
+    background: #111827;
+    font-weight: bold;
+}
+
+/* Menu principal */
+.sidebar-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    /* Faz a lista crescer verticalmente */
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* Cada item do menu */
+.sidebar-menu li {
+    display: block;
+}
+
+/* Links normais */
+.sidebar-menu li a {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.sidebar-menu li a:hover {
+    background-color: #374151;
+}
+
+/* Ícones dentro dos links */
+.sidebar-menu li a svg {
+    margin-right: 8px;
+}
+
+/* --- Botão de sair --- */
+.logout-item {
+    margin-top: auto;
+    /* empurra para baixo */
+    padding: 0.5rem 1rem 0;
+    /* espaço extra acima do suporte */
+}
+
+.logout-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #dc2626;
+    /* vermelho (tailwind: red-600) */
+    border: none;
+    color: #ffffff;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0.75rem;
+    transition: background-color 0.2s ease;
+}
+
+.logout-btn svg {
+    margin-right: 8px;
+}
+
+.logout-btn:hover {
+    background-color: #b91c1c;
+    /* vermelho mais escuro */
+}
+
+/* --- Seção de suporte no final --- */
+.support-item {
+    text-align: center;
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.75rem;
+    /* Ou use margin-top: auto; se quiser que fique
+       ainda mais embaixo, mas aqui preferimos ficar
+       abaixo do logout sem grudado no rodapé total */
+}
+
+.support-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #9ca3af;
+    /* cinza claro */
+    margin-bottom: 4px;
+}
+
+.support-link {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.9rem;
+    color: #cbd5e1;
+    /* outro tom de cinza */
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.support-link:hover {
+    text-decoration: underline;
+}
