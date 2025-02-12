@@ -238,7 +238,7 @@ function Sidebar({ onClose }) {
             textTransform: "none",
           }}
         >
-          Suporte Systems
+          Atendimento
         </Button>
       </Box>
     </Box>
