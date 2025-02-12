@@ -18,7 +18,7 @@ import {
     List,
     ListItem,
     ListItemText,
-    Checkbox
+    Checkbox,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -63,7 +63,7 @@ const CHECKLIST_ITEMS = [
     { key: "verificarQTA", label: "Verificar estado dos disjuntores/contatores do QTA" },
     { key: "verificarLimpezaQTA", label: "Verificar e realizar a limpeza do QTA se necessário" },
     { key: "verificarEstadoAmbiente", label: "Verificar o estado do ambiente" },
-    { key: "verificarLocalRestrito", label: "O local está restrito e protegido?" }
+    { key: "verificarLocalRestrito", label: "O local está restrito e protegido?" },
 ];
 
 const CHECKLIST_ITEMS_INPUT = [
@@ -90,7 +90,7 @@ const CHECKLIST_ITEMS_INPUT = [
     { key: "observacoes", label: "Observações" },
     { key: "localizacao", label: "Localização" },
     { key: "nomeTecnico", label: "Nome do técnico" },
-    { key: "nomeCliente", label: "Nome do cliente" }
+    { key: "nomeCliente", label: "Nome do cliente" },
 ];
 
 function AttendanceDetails() {
@@ -261,41 +261,123 @@ function AttendanceDetails() {
         }
     };
 
-    const handleFinish = async () => {
+    // Função unificada: Finaliza o atendimento e salva o relatório
+    const handleFinishAndSaveReport = async () => {
         try {
             const sessionToken = localStorage.getItem("sessionToken");
             if (!sessionToken) throw new Error("Sessão inválida. Faça login novamente.");
-            const response = await api.post(
+
+            // 1. Finalizar o atendimento
+            const finishResponse = await api.post(
                 "/functions/finishMaintenance",
                 { maintenanceId },
                 { headers: { "X-Parse-Session-Token": sessionToken } }
             );
-            if (response.data.result && response.data.result.success) {
-                setStatus(response.data.result.status);
-                setEndTime(response.data.result.endTime);
-                setCalculatedDuration(response.data.result.duration);
-                setCheckOutTime(response.data.result.endTime);
-                setDuration(response.data.result.duration);
-                alert("Atendimento finalizado com sucesso.");
-                setSelectedChecklist([]);
-                setChecklistInputs({});
-                setPartsUsed([]);
-                setReportDescription("");
-                setSignatureData(null);
-                setClientSignatureData(null);
-                sigCanvas.current.clear();
-                clientSigCanvas.current.clear();
-                navigate("/tecnico");
-            } else {
+
+            if (!(finishResponse.data.result && finishResponse.data.result.success)) {
                 alert("Falha ao finalizar o atendimento.");
+                return;
             }
-        } catch (error) {
-            console.error("Erro ao finalizar atendimento:", error);
-            if (error.response?.data) {
-                alert(`Erro: ${error.response.data.error}`);
+
+            // Atualiza os estados com os dados de finalização
+            setStatus(finishResponse.data.result.status);
+            setEndTime(finishResponse.data.result.endTime);
+            setCalculatedDuration(finishResponse.data.result.duration);
+            setCheckOutTime(finishResponse.data.result.endTime);
+            setDuration(finishResponse.data.result.duration);
+            alert("Atendimento finalizado com sucesso.");
+
+            // 2. Valida os campos obrigatórios para salvar o relatório
+            if (!checkInTime) {
+                alert("Por favor, inicie o atendimento antes de salvar o relatório.");
+                return;
+            }
+            if (!finishResponse.data.result.endTime) {
+                alert("Por favor, finalize o atendimento antes de salvar o relatório.");
+                return;
+            }
+            if (!reportDescription) {
+                alert("Por favor, descreva o atendimento realizado.");
+                return;
+            }
+            // Validação do horímetro
+            if (!checklistInputs["horimetro"]) {
+                alert("Por favor, informe o horímetro.");
+                return;
+            }
+            if (!signatureData) {
+                alert("Por favor, salve a assinatura do técnico antes de salvar o relatório.");
+                return;
+            }
+            if (!clientSignatureData) {
+                alert("Por favor, salve a assinatura do cliente antes de salvar o relatório.");
+                return;
+            }
+
+            // 3. Preparar os dados para salvar o relatório
+            const partsPayload = partsUsed.map((p) => ({
+                itemId: p.objectId,
+                quantity: p.usedQuantity || 1,
+            }));
+
+            const checklistText = selectedChecklist.join(", ");
+            const checklistInputsArray = Object.entries(checklistInputs).map(
+                ([key, value]) => ({ key, value })
+            );
+
+            const technicianSignatureBase64 = signatureData;
+            const customerSignatureBase64 = clientSignatureData;
+
+            // 4. Salvar o relatório
+            const reportResponse = await api.post(
+                "/functions/createMaintenanceReport",
+                {
+                    maintenanceId,
+                    reportDescription,
+                    partsUsed: partsPayload,
+                    checkInTime,
+                    checkOutTime: finishResponse.data.result.endTime,
+                    duration,
+                    checklistText,
+                    checklistInputsArray,
+                    technicianSignature: technicianSignatureBase64,
+                    customerSignature: customerSignatureBase64,
+                    customerId: maintenanceInfo?.generatorId?.customerId?.objectId,
+                },
+                { headers: { "X-Parse-Session-Token": sessionToken } }
+            );
+
+            if (reportResponse.data.result && reportResponse.data.result.report) {
+                const reportId = reportResponse.data.result.report.objectId;
+                for (const file of filesToUpload) {
+                    await uploadAttachment(reportId, file);
+                }
+                // Atualiza o horímetro, se necessário
+                if (checklistInputs["horimetro"]) {
+                    await api.post(
+                        "/functions/updateGeneratorHorimetro",
+                        {
+                            generatorId: maintenanceInfo.generatorId.objectId,
+                            horimetroAtual: checklistInputs["horimetro"],
+                        },
+                        { headers: { "X-Parse-Session-Token": sessionToken } }
+                    );
+                }
+                alert("Relatório salvo com sucesso!");
             } else {
-                alert("Erro ao finalizar o atendimento.");
+                alert("Falha ao criar relatório.");
+                return;
             }
+
+            // 5. Redireciona para a página do técnico
+            navigate("/tecnico");
+        } catch (error) {
+            console.error("Erro ao finalizar atendimento e salvar relatório:", error);
+            let errorMessage = "Erro ao finalizar atendimento e salvar relatório.";
+            if (error.response?.data?.error) {
+                errorMessage += ` Detalhes: ${error.response.data.error}`;
+            }
+            alert(errorMessage);
         }
     };
 
@@ -398,98 +480,6 @@ function AttendanceDetails() {
             setClientSignatureData(dataURL);
         } else {
             alert("Por favor, desenhe a assinatura do cliente antes de salvar.");
-        }
-    };
-
-    const handleSaveReport = async () => {
-        try {
-            if (!checkInTime) {
-                alert("Por favor, inicie o atendimento antes de salvar o relatório.");
-                return;
-            }
-            if (!checkOutTime) {
-                alert("Por favor, finalize o atendimento antes de salvar o relatório.");
-                return;
-            }
-            if (!reportDescription) {
-                alert("Por favor, descreva o atendimento realizado.");
-                return;
-            }
-            // Validação do horímetro
-            if (!checklistInputs["horimetro"]) {
-                alert("Por favor, informe o horímetro.");
-                return;
-            }
-            if (!signatureData) {
-                alert("Por favor, salve a assinatura do técnico antes de salvar o relatório.");
-                return;
-            }
-            if (!clientSignatureData) {
-                alert("Por favor, salve a assinatura do cliente antes de salvar o relatório.");
-                return;
-            }
-
-            const partsPayload = partsUsed.map((p) => ({
-                itemId: p.objectId,
-                quantity: p.usedQuantity || 1,
-            }));
-
-            const checklistText = selectedChecklist.join(", ");
-            const checklistInputsArray = Object.entries(checklistInputs).map(
-                ([key, value]) => ({ key, value })
-            );
-
-            const technicianSignatureBase64 = signatureData;
-            const customerSignatureBase64 = clientSignatureData;
-
-            const resp = await api.post(
-                "/functions/createMaintenanceReport",
-                {
-                    maintenanceId,
-                    reportDescription,
-                    partsUsed: partsPayload,
-                    checkInTime,
-                    checkOutTime,
-                    duration,
-                    checklistText,
-                    checklistInputsArray,
-                    technicianSignature: technicianSignatureBase64,
-                    customerSignature: customerSignatureBase64,
-                    customerId: maintenanceInfo?.generatorId?.customerId?.objectId
-                },
-                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
-            );
-
-            if (resp.data.result && resp.data.result.report) {
-                const reportId = resp.data.result.report.objectId;
-                for (const file of filesToUpload) {
-                    await uploadAttachment(reportId, file);
-                }
-                // Atualiza o horímetro, se necessário
-                if (checklistInputs["horimetro"]) {
-                    await api.post(
-                        "/functions/updateGeneratorHorimetro",
-                        {
-                            generatorId: maintenanceInfo.generatorId.objectId,
-                            horimetroAtual: checklistInputs["horimetro"]
-                        },
-                        { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
-                    );
-                }
-                alert("Relatório salvo com sucesso!");
-                // NÃO limpamos checkInTime e checkOutTime para que seja possível finalizar o atendimento.
-                // Apenas os campos do relatório são resetados:
-
-            } else {
-                alert("Falha ao criar relatório.");
-            }
-        } catch (error) {
-            console.error("Erro ao salvar relatório:", error);
-            if (error.response?.data) {
-                alert(`Falha ao salvar relatório: ${error.response.data.error}`);
-            } else {
-                alert("Falha ao salvar relatório. Verifique os campos e tente novamente.");
-            }
         }
     };
 
@@ -795,19 +785,12 @@ function AttendanceDetails() {
                 )}
             </Paper>
 
-            {/* Botão de Salvar Relatório */}
-            <Box textAlign="center" mb={3}>
-                <Button variant="contained" color="primary" onClick={handleSaveReport}>
-                    Salvar Relatório
-                </Button>
-            </Box>
-
-            {/* Botão de Finalizar Atendimento */}
+            {/* Botão Único de Finalizar Atendimento (finaliza e salva o relatório) */}
             <Box textAlign="center" mb={3}>
                 <Button
                     variant="contained"
                     color="secondary"
-                    onClick={handleFinish}
+                    onClick={handleFinishAndSaveReport}
                     disabled={!checkInTime || status === "Concluída"}
                 >
                     Finalizar Atendimento
