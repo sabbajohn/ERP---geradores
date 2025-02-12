@@ -1,9 +1,8 @@
 {
   "routes": [
-    { "src": "/(.*).js$", "dest": "/$1.js" },
-    { "src": "/(.*).css$", "dest": "/$1.css" },
-    { "src": "/(.*).(jpg|jpeg|png|svg|gif|ico|json)$", "dest": "/$1.$2" },
-    { "src": "/tecnico", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+    { "src": "/(.*)\\.js$", "dest": "/$1.js" },
+    { "src": "/(.*)\\.css$", "dest": "/$1.css" },
+    { "src": "/(.*)\\.(jpg|jpeg|png|svg|gif|ico|json)$", "dest": "/$1.$2" }
+  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
