@@ -52,14 +52,10 @@ function Sidebar({ onClose }) {
       sx={{
         width: 250,
         height: "100vh",
-        position: "fixed",    // Torna a sidebar fixa
-        top: 0,               // Alinha ao topo da tela
-        left: 0,              // Alinha à esquerda da tela
-        overflowY: "auto",    // Permite rolagem interna se necessário
         display: "flex",
         flexDirection: "column",
         backgroundColor: "#1e1e2f", // Fundo escuro
-        color: "#fff",             // Texto branco
+        color: "#fff", // Texto branco
       }}
     >
       {/* Cabeçalho com logo */}
@@ -242,7 +238,7 @@ function Sidebar({ onClose }) {
             textTransform: "none",
           }}
         >
-          Sabbá Systems
+          Sabbah Systems
         </Button>
       </Box>
     </Box>
