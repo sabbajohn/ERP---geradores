@@ -18,6 +18,7 @@ import {
     Card,
     CardHeader,
     CardContent,
+    Grid,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import api from "../services/api";
@@ -160,7 +161,7 @@ function GeneratorDetails() {
     const formatDateTime = (dateString) => {
         if (!dateString) return "—";
         const parsed = new Date(dateString);
-        if (isNaN(parsed.getTime())) return dateString; // Retorna a string crua se não for válido
+        if (isNaN(parsed.getTime())) return dateString; // Retorna string crua se inválido
         return parsed.toLocaleString("pt-BR", {
             day: "2-digit",
             month: "2-digit",
@@ -190,37 +191,84 @@ function GeneratorDetails() {
             <Card sx={{ mb: 3 }}>
                 <CardHeader title="Detalhes do Gerador" />
                 <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                        Nome: {generator.name}
-                    </Typography>
-                    <Typography variant="h6" gutterBottom>
-                        Número de Série: {generator.serialNumber}
-                    </Typography>
+                    <Grid container spacing={2}>
+                        {/* Coluna 1 */}
+                        <Grid item xs={12} md={6}>
+                            <Typography variant="h6" gutterBottom>
+                                Nome: {generator.name}
+                            </Typography>
+                            <Typography variant="h6" gutterBottom>
+                                Número de Série: {generator.serialNumber}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Localização:</strong>{" "}
+                                {generator.location || "Não informado"}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Status:</strong> {generator.status}
+                            </Typography>
 
-                    <Typography sx={{ mb: 1 }}>
-                        <strong>Localização:</strong> {generator.location || "Não informado"}
-                    </Typography>
-                    <Typography sx={{ mb: 1 }}>
-                        <strong>Status:</strong> {generator.status}
-                    </Typography>
-                    <Typography sx={{ mb: 1 }}>
-                        <strong>Propriedade:</strong> {generator.ownershipType}
-                    </Typography>
-                    <Typography sx={{ mb: 1 }}>
-                        <strong>Cliente:</strong>{" "}
-                        {generator.customer ? generator.customer.name : "Sem Cliente"}
-                    </Typography>
-                    <Typography sx={{ mb: 1 }}>
-                        <strong>Data de Compra:</strong> {formatDate(generator.purchaseDate)}
-                    </Typography>
-                    <Typography sx={{ mb: 1 }}>
-                        <strong>Data de Entrega Técnica:</strong>{" "}
-                        {formatDate(generator.deliveryDate)}
-                    </Typography>
-                    <Typography sx={{ mb: 1 }}>
-                        <strong>Última Manutenção:</strong>{" "}
-                        {formatDate(generator.lastMaintenanceDate)}
-                    </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Cliente:</strong>{" "}
+                                {generator.customer ? generator.customer.name : "Sem Cliente"}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Data de Compra:</strong>{" "}
+                                {formatDate(generator.purchaseDate)}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Data de Entrega Técnica:</strong>{" "}
+                                {formatDate(generator.deliveryDate)}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Última Manutenção:</strong>{" "}
+                                {formatDate(generator.lastMaintenanceDate)}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Adicionado por:</strong>{" "}
+                                {generator.creatorName || "Não informado"}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Horímetro Atual:</strong>{" "}
+                                {generator.horimetroAtual !== undefined
+                                    ? generator.horimetroAtual
+                                    : "—"}
+                            </Typography>
+                        </Grid>
+
+                        {/* Coluna 2 */}
+                        <Grid item xs={12} md={6}>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Motor:</strong> {generator.motor || "—"}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Modelo:</strong> {generator.modelo || "—"}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Fabricante:</strong> {generator.fabricante || "—"}
+                            </Typography>
+                            <Typography sx={{ mb: 1 }}>
+                                <strong>Potência:</strong> {generator.potencia || "—"}
+                            </Typography>
+
+                            {/* BLOCO PARA EXIBIR CAMPOS EXTRAS, SE EXISTIREM */}
+                            {generator.extraFields && generator.extraFields.length > 0 && (
+                                <Box mt={2}>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{ fontWeight: "bold", color: "primary.main", mb: 1 }}
+                                    >
+                                        Campos Adicionais
+                                    </Typography>
+                                    {generator.extraFields.map((field) => (
+                                        <Typography key={field.objectId} sx={{ mb: 0.5 }}>
+                                            <strong>{field.fieldName}:</strong> {field.fieldValue}
+                                        </Typography>
+                                    ))}
+                                </Box>
+                            )}
+                        </Grid>
+                    </Grid>
                 </CardContent>
             </Card>
 
@@ -231,15 +279,25 @@ function GeneratorDetails() {
                 <CardHeader title="Manutenções Relacionadas" />
                 <CardContent>
                     {maintenances.length === 0 ? (
-                        <Typography>Nenhuma manutenção cadastrada para este gerador.</Typography>
+                        <Typography>
+                            Nenhuma manutenção cadastrada para este gerador.
+                        </Typography>
                     ) : (
                         <Table component={Paper}>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell><strong>Data</strong></TableCell>
-                                    <TableCell><strong>Início</strong></TableCell>
-                                    <TableCell><strong>Término</strong></TableCell>
-                                    <TableCell><strong>Status</strong></TableCell>
+                                    <TableCell>
+                                        <strong>Data</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Início</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Término</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Status</strong>
+                                    </TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -249,9 +307,15 @@ function GeneratorDetails() {
                                         : maintenance.maintenanceDate;
                                     return (
                                         <StyledTableRow key={maintenance.objectId}>
-                                            <TableCell>{formatDate(maintenanceDate)}</TableCell>
-                                            <TableCell>{formatDateTime(maintenance.startTime)}</TableCell>
-                                            <TableCell>{formatDateTime(maintenance.endTime)}</TableCell>
+                                            <TableCell>
+                                                {formatDate(maintenanceDate)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDateTime(maintenance.startTime)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDateTime(maintenance.endTime)}
+                                            </TableCell>
                                             <TableCell>{maintenance.status || "—"}</TableCell>
                                         </StyledTableRow>
                                     );
@@ -269,45 +333,66 @@ function GeneratorDetails() {
                 <CardHeader title="Relatórios de Manutenção" />
                 <CardContent>
                     {reports.length === 0 ? (
-                        <Typography>Nenhum relatório cadastrado para este gerador.</Typography>
+                        <Typography>
+                            Nenhum relatório cadastrado para este gerador.
+                        </Typography>
                     ) : (
                         <Table component={Paper}>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell><strong>Descrição</strong></TableCell>
-                                    <TableCell><strong>Check-in</strong></TableCell>
-                                    <TableCell><strong>Check-out</strong></TableCell>
-                                    <TableCell><strong>Peças Usadas</strong></TableCell>
-                                    <TableCell><strong>Anexos</strong></TableCell>
-                                    <TableCell><strong>Cliente</strong></TableCell>
-                                    <TableCell><strong>Técnico</strong></TableCell>
+                                    <TableCell>
+                                        <strong>Descrição</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Check-in</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Check-out</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Peças Usadas</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Anexos</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Cliente</strong>
+                                    </TableCell>
+                                    <TableCell>
+                                        <strong>Técnico</strong>
+                                    </TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {reports.map((report) => {
                                     // Peças Usadas
-                                    const partsUsed = report.partsUsed?.map((part, idx) => (
-                                        <div key={idx}>
-                                            {part.itemName} - {part.quantity}x
-                                        </div>
-                                    )) || "—";
+                                    const partsUsed =
+                                        report.partsUsed?.map((part, idx) => (
+                                            <div key={idx}>
+                                                {part.itemName} - {part.quantity}x
+                                            </div>
+                                        )) || "—";
 
                                     // Anexos -> miniaturas clicáveis
-                                    const attachments = report.attachments?.map((att) => (
-                                        <div key={att.objectId} style={{ marginBottom: 4 }}>
-                                            <img
-                                                src={att.fileUrl}
-                                                alt={att.fileName}
-                                                style={{
-                                                    maxWidth: 60,
-                                                    maxHeight: 60,
-                                                    cursor: "pointer",
-                                                    borderRadius: 4,
-                                                }}
-                                                onClick={() => handleOpenImage(att.fileUrl)}
-                                            />
-                                        </div>
-                                    )) || "—";
+                                    const attachments =
+                                        report.attachments?.map((att) => (
+                                            <div
+                                                key={att.objectId}
+                                                style={{ marginBottom: 4 }}
+                                            >
+                                                <img
+                                                    src={att.fileUrl}
+                                                    alt={att.fileName}
+                                                    style={{
+                                                        maxWidth: 60,
+                                                        maxHeight: 60,
+                                                        cursor: "pointer",
+                                                        borderRadius: 4,
+                                                    }}
+                                                    onClick={() => handleOpenImage(att.fileUrl)}
+                                                />
+                                            </div>
+                                        )) || "—";
 
                                     // Nome do cliente e do técnico
                                     const customerName = report.customerId?.name || "—";
@@ -318,11 +403,19 @@ function GeneratorDetails() {
 
                                     return (
                                         <StyledTableRow key={report.objectId}>
-                                            <TableCell>{report.reportDescription || "—"}</TableCell>
-                                            <TableCell>{formatDateTime(report.checkInTime)}</TableCell>
-                                            <TableCell>{formatDateTime(report.checkOutTime)}</TableCell>
                                             <TableCell>
-                                                {Array.isArray(partsUsed) && partsUsed.length ? partsUsed : "—"}
+                                                {report.reportDescription || "—"}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDateTime(report.checkInTime)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDateTime(report.checkOutTime)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {Array.isArray(partsUsed) && partsUsed.length
+                                                    ? partsUsed
+                                                    : "—"}
                                             </TableCell>
                                             <TableCell>
                                                 {Array.isArray(attachments) && attachments.length
@@ -341,7 +434,11 @@ function GeneratorDetails() {
             </Card>
 
             {/* Modal para exibir imagem em tamanho grande */}
-            <Dialog open={!!selectedImage} onClose={handleCloseImage} maxWidth="lg">
+            <Dialog
+                open={!!selectedImage}
+                onClose={handleCloseImage}
+                maxWidth="lg"
+            >
                 <DialogContent sx={{ textAlign: "center" }}>
                     {selectedImage && (
                         <img

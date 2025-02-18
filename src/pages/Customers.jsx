@@ -26,6 +26,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import InputMask from "react-input-mask";
 import api from "../services/api";
+import ClientModal from "../components/ClientModal";
 
 function Customers() {
   const [customers, setCustomers] = useState([]);

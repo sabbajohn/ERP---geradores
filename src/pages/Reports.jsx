@@ -37,11 +37,8 @@ import ServiceReport from "../components/ServiceReport"; // Certifique-se de que
 
 // Função utilitária para formatar os itens do checklist
 const formatChecklistItem = (item) => {
-  // Remove espaços desnecessários e substitui "verificar" por "verificado" (ignora case)
   let newItem = item.trim().replace(/^verificar/i, "verificado");
-  // Insere espaço antes das letras maiúsculas (caso esteja em camelCase)
   newItem = newItem.replace(/([A-Z])/g, " $1").trim();
-  // Capitaliza a primeira letra
   return newItem.charAt(0).toUpperCase() + newItem.slice(1);
 };
 
@@ -58,8 +55,8 @@ function Reports() {
   const [attachments, setAttachments] = useState([]);
 
   // Estados para PDF
-  const [pdfReportData, setPdfReportData] = useState(null); // Dados para o PDF
-  const [showPdfDownloadLink, setShowPdfDownloadLink] = useState(false); // Controle do botão de download
+  const [pdfReportData, setPdfReportData] = useState(null);
+  const [showPdfDownloadLink, setShowPdfDownloadLink] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -112,7 +109,6 @@ function Reports() {
     setSelectedReport(rep);
     setAttachments(rep.attachments || []);
     setOpenDetail(true);
-    // Reseta os dados do PDF e o flag sempre que abre o modal
     setPdfReportData(null);
     setShowPdfDownloadLink(false);
   };
@@ -121,7 +117,6 @@ function Reports() {
     setOpenDetail(false);
     setSelectedReport(null);
     setAttachments([]);
-    // Opcionalmente, limpe também os dados do PDF
     setPdfReportData(null);
     setShowPdfDownloadLink(false);
   };
@@ -145,7 +140,7 @@ function Reports() {
       });
     } catch (error) {
       console.error("Erro ao converter imagem:", url, error);
-      return url; // se falhar, retorna a própria URL
+      return url;
     }
   };
 
@@ -157,7 +152,6 @@ function Reports() {
     }
 
     try {
-      // Chama a Cloud Function para obter todos os dados necessários
       const response = await api.post(
         "/functions/getMaintenanceReportDetails",
         { reportId: selectedReport.objectId },
@@ -175,7 +169,6 @@ function Reports() {
 
       const reportData = response.data.result;
 
-      // Se existir checklistText, substitui "verificar" por "verificado" em cada item
       if (reportData.checklistText) {
         const checklistItems = reportData.checklistText
           .split(",")
@@ -183,7 +176,6 @@ function Reports() {
         reportData.checklistText = checklistItems.join(", ");
       }
 
-      // Pré-converte as imagens (assinaturas e anexos) para base64, se necessário:
       if (reportData.technicianSignature && !reportData.technicianSignature.startsWith("data:")) {
         reportData.technicianSignature = await getBase64ImageFromUrl(reportData.technicianSignature);
       }
@@ -200,8 +192,8 @@ function Reports() {
       }
 
       console.log("Dados para PDF (imagens convertidas):", reportData);
-      setPdfReportData(reportData); // Armazena os dados no estado
-      setShowPdfDownloadLink(true); // Exibe o botão de download
+      setPdfReportData(reportData);
+      setShowPdfDownloadLink(true);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       alert("Erro ao gerar PDF. Tente novamente.");
@@ -267,6 +259,9 @@ function Reports() {
                 <strong>Técnico</strong>
               </TableCell>
               <TableCell>
+                <strong>Cliente</strong>
+              </TableCell>
+              <TableCell>
                 <strong>Descrição</strong>
               </TableCell>
               <TableCell>
@@ -274,9 +269,6 @@ function Reports() {
               </TableCell>
               <TableCell>
                 <strong>Checklist</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Assinaturas</strong>
               </TableCell>
               <TableCell align="center">
                 <strong>Ações</strong>
@@ -287,24 +279,22 @@ function Reports() {
             {filteredReports.map((rep) => {
               const genSerial = rep.generatorId?.serialNumber || "Sem gerador";
               const techName = rep.technicianUser?.username || "Desconhecido";
-
               let iso = rep.createdAt?.iso || rep.createdAt;
-              let createDate = "";
-              if (iso) {
-                createDate = new Date(iso).toLocaleString("pt-BR");
-              }
-
+              let createDate = iso ? new Date(iso).toLocaleString("pt-BR") : "";
               const horimetroValue =
                 rep.horimetro ||
                 (rep.checklistInputs &&
                   rep.checklistInputs.find((input) => input.key === "horimetro")?.value) ||
                 "N/A";
+              // Obtém o nome do cliente a partir do novo campo (maintenanceCustomer)
+              const clientName = rep.maintenanceCustomer?.name || rep.customerId?.name || "N/A";
 
               return (
                 <TableRow key={rep.objectId}>
                   <TableCell>{genSerial}</TableCell>
                   <TableCell>{createDate}</TableCell>
                   <TableCell>{techName}</TableCell>
+                  <TableCell>{clientName}</TableCell>
                   <TableCell>{rep.reportDescription}</TableCell>
                   <TableCell>{horimetroValue}</TableCell>
                   <TableCell>
@@ -314,47 +304,6 @@ function Reports() {
                         size="small"
                         onClick={() => handleOpenChecklistModal(rep)}
                       >
-                        <InfoIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip
-                      title={
-                        <Box>
-                          {rep.technicianSignature && (
-                            <Box mb={1} textAlign="center">
-                              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-                                Assinatura do Técnico
-                              </Typography>
-                              <img
-                                src={rep.technicianSignature}
-                                alt="Assinatura do Técnico"
-                                style={{ maxWidth: "200px", height: "auto" }}
-                              />
-                            </Box>
-                          )}
-                          {rep.customerSignature && (
-                            <Box textAlign="center">
-                              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-                                Assinatura do Cliente
-                              </Typography>
-                              <img
-                                src={rep.customerSignature}
-                                alt="Assinatura do Cliente"
-                                style={{ maxWidth: "200px", height: "auto" }}
-                              />
-                            </Box>
-                          )}
-                          {!rep.technicianSignature && !rep.customerSignature && (
-                            <Typography>Nenhuma assinatura disponível.</Typography>
-                          )}
-                        </Box>
-                      }
-                      arrow
-                      placement="right"
-                    >
-                      <IconButton color="info" size="small">
                         <InfoIcon />
                       </IconButton>
                     </Tooltip>
@@ -410,16 +359,20 @@ function Reports() {
                   Informações do Cliente
                 </Typography>
                 <Typography>
-                  <strong>Nome do Cliente:</strong>{" "}{selectedReport.customerId?.name || "N/A"}
+                  <strong>Nome do Cliente:</strong>{" "}
+                  {selectedReport.maintenanceCustomer?.name || selectedReport.customerId?.name || "N/A"}
                 </Typography>
                 <Typography>
-                  <strong>E-mail:</strong>{" "}{selectedReport.customerId?.email || "-"}
+                  <strong>E-mail:</strong>{" "}
+                  {selectedReport.customerId?.email || "-"}
                 </Typography>
                 <Typography>
-                  <strong>Endereço:</strong>{" "}{selectedReport.customerId?.address || "-"}
+                  <strong>Endereço:</strong>{" "}
+                  {selectedReport.customerId?.address || "-"}
                 </Typography>
                 <Typography>
-                  <strong>Telefone:</strong>{" "}{selectedReport.customerId?.phone || "-"}
+                  <strong>Telefone:</strong>{" "}
+                  {selectedReport.customerId?.phone || "-"}
                 </Typography>
               </MuiPaper>
 
@@ -429,10 +382,12 @@ function Reports() {
                   Informações do Gerador
                 </Typography>
                 <Typography>
-                  <strong>Serial Number:</strong>{" "}{selectedReport.generatorId?.serialNumber || "N/A"}
+                  <strong>Serial Number:</strong>{" "}
+                  {selectedReport.generatorId?.serialNumber || "N/A"}
                 </Typography>
                 <Typography>
-                  <strong>Localização do Gerador:</strong>{" "}{selectedReport.generatorId?.location || "N/A"}
+                  <strong>Localização do Gerador:</strong>{" "}
+                  {selectedReport.generatorId?.location || "N/A"}
                 </Typography>
               </MuiPaper>
 
@@ -444,26 +399,30 @@ function Reports() {
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
                     <Typography>
-                      <strong>Data de Check-in:</strong>{" "}{selectedReport.checkInTime
+                      <strong>Data de Check-in:</strong>{" "}
+                      {selectedReport.checkInTime
                         ? new Date(selectedReport.checkInTime).toLocaleString("pt-BR")
                         : "N/A"}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography>
-                      <strong>Data de Check-out:</strong>{" "}{selectedReport.checkOutTime
+                      <strong>Data de Check-out:</strong>{" "}
+                      {selectedReport.checkOutTime
                         ? new Date(selectedReport.checkOutTime).toLocaleString("pt-BR")
                         : "N/A"}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography>
-                      <strong>Duração:</strong>{" "}{selectedReport.duration || "N/A"}
+                      <strong>Duração:</strong>{" "}
+                      {selectedReport.duration || "N/A"}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
                     <Typography>
-                      <strong>Horímetro:</strong>{" "}{selectedReport.horimetro ||
+                      <strong>Horímetro:</strong>{" "}
+                      {selectedReport.horimetro ||
                         (selectedReport.checklistInputs &&
                           selectedReport.checklistInputs.find((input) => input.key === "horimetro")?.value) ||
                         "N/A"}
@@ -509,7 +468,7 @@ function Reports() {
                 </MuiPaper>
               )}
 
-              {/* Assinatura do Técnico */}
+              {/* Assinaturas (se desejar manter em outra parte do modal, senão, pode removê-las) */}
               {selectedReport.technicianSignature && selectedReport.technicianSignature !== "" && (
                 <MuiPaper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
@@ -523,7 +482,6 @@ function Reports() {
                 </MuiPaper>
               )}
 
-              {/* Assinatura do Cliente */}
               {selectedReport.customerSignature && selectedReport.customerSignature !== "" && (
                 <MuiPaper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
@@ -563,7 +521,6 @@ function Reports() {
 
         {/* DialogActions com PDFDownloadLink */}
         <DialogActions>
-          {/* Botão para gerar os dados do PDF */}
           <Button
             color="secondary"
             variant="contained"
@@ -573,7 +530,6 @@ function Reports() {
             Gerar PDF
           </Button>
 
-          {/* Renderiza o botão de download do PDF somente se os dados estiverem disponíveis */}
           {showPdfDownloadLink && pdfReportData && (
             <PDFDownloadLink
               document={<ServiceReport reportData={pdfReportData} />}
@@ -586,7 +542,6 @@ function Reports() {
                   startIcon={<DownloadIcon />}
                   disabled={loading}
                   onClick={() => {
-                    // Aguarda 5 segundos antes de ocultar o botão, para garantir o download
                     setTimeout(() => {
                       setShowPdfDownloadLink(false);
                       setPdfReportData(null);
@@ -618,7 +573,6 @@ function Reports() {
               {selectedChecklist.checklistText ? (
                 <List>
                   {selectedChecklist.checklistText.split(",").map((item, idx) => {
-                    // Aqui usamos a função utilitária para formatar cada item
                     const newItem = formatChecklistItem(item);
                     return (
                       <ListItem key={idx}>

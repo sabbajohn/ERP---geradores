@@ -43,17 +43,17 @@ function ChecklistItem({ item, index, onStatusChange, onObservacaoChange }) {
                         label="Não Conforme"
                     />
                 </RadioGroup>
-                {status === "nao-conforme" && (
-                    <TextField
-                        fullWidth
-                        label="Observações"
-                        multiline
-                        rows={2}
-                        sx={{ mt: 2 }}
-                        value={observacao}
-                        onChange={(e) => onObservacaoChange(index, e.target.value)}
-                    />
-                )}
+
+                {/* AGORA SEM CONDIÇÃO: campo de observação sempre aparece */}
+                <TextField
+                    fullWidth
+                    label="Observações"
+                    multiline
+                    rows={2}
+                    sx={{ mt: 2 }}
+                    value={observacao}
+                    onChange={(e) => onObservacaoChange(index, e.target.value)}
+                />
             </AccordionDetails>
         </Accordion>
     );

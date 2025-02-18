@@ -1,24 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Calendar from "react-calendar"; // react-calendar (mobile-friendly)
+import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-
-import InputMask from "react-input-mask";
 
 import {
     Box,
     Card,
     Typography,
-    Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    TextField,
-    DialogActions,
-    MenuItem,
-    Select,
-    FormControl,
-    InputLabel,
     AppBar,
     Toolbar,
     IconButton,
@@ -27,6 +15,19 @@ import {
 import LogoutIcon from "@mui/icons-material/Logout";
 
 import api from "../services/api";
+
+// IMPORTAMOS OS NOVOS COMPONENTES DE MODAL
+import GeneratorModal from "../components/GeneratorModal";
+import ClientModal from "../components/ClientModal";
+
+// IMPORTS DO MUI PARA O SPEED DIAL
+import SpeedDial from "@mui/material/SpeedDial";
+import SpeedDialIcon from "@mui/material/SpeedDialIcon";
+import SpeedDialAction from "@mui/material/SpeedDialAction";
+
+// Ícones para as ações do SpeedDial
+import AddIcon from "@mui/icons-material/Add";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 
 const TechnicianCalendar = () => {
     const navigate = useNavigate();
@@ -40,16 +41,21 @@ const TechnicianCalendar = () => {
 
     const [date, setDate] = useState(new Date());
     const [maintenances, setMaintenances] = useState([]);
+
+    // Para abrir/fechar o modal
     const [openModal, setOpenModal] = useState(false);
 
-    // Para popular o dropdown de clientes no formulário de gerador
-    const [clients, setClients] = useState([]);
-
-    // Estado para controlar qual formulário será exibido no modal:
-    // "generator" ou "client"
+    // Definimos se vamos abrir o modal de "generator" ou "client"
     const [entryType, setEntryType] = useState("generator");
 
-    // Estado para cadastro de cliente (campos conforme a tela de administrador)
+    // --------------------------------------------------------------------
+    // Para popular o dropdown de clientes (no GeneratorModal)
+    // --------------------------------------------------------------------
+    const [clients, setClients] = useState([]);
+
+    // --------------------------------------------------------------------
+    // Formulário de Cliente (usado no ClientModal)
+    // --------------------------------------------------------------------
     const [newCustomer, setNewCustomer] = useState({
         name: "",
         document: "",
@@ -58,20 +64,34 @@ const TechnicianCalendar = () => {
         address: "",
     });
 
-    // Estado para cadastro de gerador (campos conforme a tela de administrador)
+    // --------------------------------------------------------------------
+    // Formulário de Gerador (usado no GeneratorModal)
+    // --------------------------------------------------------------------
     const [newGenerator, setNewGenerator] = useState({
         name: "",
         serialNumber: "",
-        customerId: "",
         location: "",
         purchaseDate: "",
-        deliveryDate: "",
-        status: "disponivel", // valor padrão
-        ownershipType: "Empresa",
+        lastMaintenanceDate: "",
+        deliveryDate: "",     // Adicionado
+        horimetroAtual: "",   // Adicionado
+        status: "disponivel",
+        motor: "",
+        modelo: "",
+        fabricante: "",
+        potencia: "",
+        customerId: "",
     });
 
+    // Campos adicionais (extraFields) do gerador
+    const [newGeneratorExtraFields, setNewGeneratorExtraFields] = useState([]);
+
+    // --------------------------------------------------------------------
+    // Efeitos para buscar dados iniciais
+    // --------------------------------------------------------------------
     useEffect(() => {
         fetchMaintenancesByTechnician();
+        fetchClients();
     }, []);
 
     // Busca as manutenções do técnico logado
@@ -80,13 +100,17 @@ const TechnicianCalendar = () => {
             const response = await api.post(
                 "/functions/getMaintenancesByTech",
                 { technicianId },
-                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+                {
+                    headers: {
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
+                }
             );
             if (response.data.result) {
                 setMaintenances(response.data.result);
             }
         } catch (error) {
-            console.error("Erro ao buscar manutenções do técnico:", error.message);
+            console.error("Erro ao buscar manutenções:", error.message);
         }
     };
 
@@ -96,7 +120,11 @@ const TechnicianCalendar = () => {
             const response = await api.post(
                 "/functions/getAllCustomers",
                 {},
-                { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+                {
+                    headers: {
+                        "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                    },
+                }
             );
             if (response.data.result) {
                 setClients(response.data.result);
@@ -106,12 +134,7 @@ const TechnicianCalendar = () => {
         }
     };
 
-    // Executa a busca de clientes uma vez (para o formulário de gerador)
-    useEffect(() => {
-        fetchClients();
-    }, []);
-
-    // Logout: limpa os dados do localStorage e redireciona para o login
+    // Logout
     const handleLogout = () => {
         localStorage.removeItem("sessionToken");
         localStorage.removeItem("role");
@@ -120,21 +143,41 @@ const TechnicianCalendar = () => {
         navigate("/login");
     };
 
-    // Ao clicar em um dia do calendário, navega para a agenda do dia
+    // Clique em dia do calendário => navega para agenda daquele dia
     const handleDateClick = (value) => {
         const selectedDate = value.toISOString().split("T")[0]; // YYYY-MM-DD
         navigate(`/agenda/${selectedDate}`);
     };
 
-    // Abre o modal e define o tipo padrão (pode ser alterado no select)
-    const handleOpenModal = () => {
+    // Abre o modal definindo qual tipo de cadastro queremos
+    const handleOpenModal = (type) => {
+        setEntryType(type);
         setOpenModal(true);
     };
 
-    // Fecha o modal e reseta os estados dos formulários
+    // Fecha o modal e reseta states
     const handleCloseModal = () => {
         setOpenModal(false);
-        setEntryType("generator");
+        setEntryType("generator"); // opcional, se quiser resetar
+
+        // Reseta o formulário de gerador
+        setNewGenerator({
+            name: "",
+            serialNumber: "",
+            customerId: "",
+            location: "",
+            purchaseDate: "",
+            lastMaintenanceDate: "",
+            status: "disponivel",
+            ownershipType: "Empresa",
+            motor: "",
+            modelo: "",
+            fabricante: "",
+            potencia: "",
+        });
+        setNewGeneratorExtraFields([]);
+
+        // Reseta o formulário de cliente
         setNewCustomer({
             name: "",
             document: "",
@@ -142,59 +185,99 @@ const TechnicianCalendar = () => {
             email: "",
             address: "",
         });
-        setNewGenerator({
-            name: "",
-            serialNumber: "",
-            customerId: "",
-            location: "",
-            purchaseDate: "",
-            deliveryDate: "",
-            status: "disponivel",
-            ownershipType: "Empresa",
-        });
     };
 
-    // Salva o novo cadastro (cliente ou gerador) conforme o tipo selecionado
-    const handleSaveEntry = async () => {
-        if (entryType === "client") {
-            // Prepara os dados removendo formatações de documento e telefone
+    // ----------------------------------------------------------------------------
+    // SALVAR CLIENTE
+    // ----------------------------------------------------------------------------
+    const handleSaveClient = async () => {
+        try {
+            // Remover máscaras (documento e telefone)
             const payload = {
                 ...newCustomer,
                 document: newCustomer.document.replace(/\D/g, ""),
                 phone: newCustomer.phone.replace(/\D/g, ""),
             };
-            try {
-                await api.post(
-                    "/functions/createCustomer",
-                    payload,
-                    { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
-                );
-                // Aqui você pode exibir uma notificação de sucesso ou atualizar uma lista, se necessário.
-            } catch (error) {
-                console.error("Erro ao salvar cliente:", error.response?.data || error.message);
-            }
-        } else if (entryType === "generator") {
-            try {
-                await api.post(
-                    "/functions/createGenerator",
-                    newGenerator,
-                    { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
-                );
-                // Aqui você pode exibir uma notificação de sucesso ou atualizar uma lista, se necessário.
-            } catch (error) {
-                console.error("Erro ao salvar gerador:", error.response?.data || error.message);
-            }
+
+            await api.post("/functions/createCustomer", payload, {
+                headers: {
+                    "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                },
+            });
+
+            // Fechar modal
+            handleCloseModal();
+            // Se quiser recarregar lista de clientes
+            fetchClients();
+        } catch (error) {
+            console.error("Erro ao salvar cliente:", error.response?.data || error.message);
         }
-        handleCloseModal();
     };
 
-    // Para marcar os dias do calendário que possuem manutenções
+    // ----------------------------------------------------------------------------
+    // SALVAR GERADOR
+    // ----------------------------------------------------------------------------
+    const handleSaveGenerator = async () => {
+        // Se o status for "Vendido", cliente é obrigatório
+        if (newGenerator.status === "Vendido" && !newGenerator.customerId) {
+            alert("É obrigatório informar o Cliente quando o gerador está 'Vendido'.");
+            return;
+        }
+
+        const payload = {
+            ...newGenerator,
+            extraFields: newGeneratorExtraFields,
+        };
+
+        try {
+            await api.post("/functions/createGenerator", payload, {
+                headers: {
+                    "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+                },
+            });
+            // Fechar modal
+            handleCloseModal();
+        } catch (error) {
+            console.error("Erro ao salvar gerador:", error.response?.data || error.message);
+        }
+    };
+
+    // ----------------------------------------------------------------------------
+    // FUNÇÕES PARA MANIPULAR OS CAMPOS EXTRAS DO GERADOR
+    // ----------------------------------------------------------------------------
+    const addNewGeneratorExtraField = () => {
+        setNewGeneratorExtraFields((prev) => [
+            ...prev,
+            { fieldName: "", fieldValue: "" },
+        ]);
+    };
+    const removeNewGeneratorExtraField = (index) => {
+        const updated = [...newGeneratorExtraFields];
+        updated.splice(index, 1);
+        setNewGeneratorExtraFields(updated);
+    };
+    const handleNewGeneratorExtraFieldChange = (index, key, value) => {
+        const updated = [...newGeneratorExtraFields];
+        updated[index][key] = value;
+        setNewGeneratorExtraFields(updated);
+    };
+
+    // ----------------------------------------------------------------------------
+    // Marcar no calendário os dias com manutenção
+    // ----------------------------------------------------------------------------
     const tileContent = ({ date: dayDate, view }) => {
         if (view === "month") {
             const dayString = dayDate.toISOString().split("T")[0];
-            const count = maintenances.filter(
-                (m) => m.maintenanceDate.iso.split("T")[0] === dayString
-            ).length;
+            const count = maintenances.filter((m) => {
+                let maintDateStr = "";
+                if (m.maintenanceDate && typeof m.maintenanceDate === "string") {
+                    maintDateStr = m.maintenanceDate.split("T")[0];
+                } else if (m.maintenanceDate?.iso) {
+                    maintDateStr = m.maintenanceDate.iso.split("T")[0];
+                }
+                return maintDateStr === dayString;
+            }).length;
+
             if (count > 0) {
                 return (
                     <Box sx={{ display: "flex", justifyContent: "center", gap: "2px" }}>
@@ -205,7 +288,7 @@ const TechnicianCalendar = () => {
                                     width: "5px",
                                     height: "5px",
                                     backgroundColor: "#03a9f4",
-                                    borderRadius: "50%"
+                                    borderRadius: "50%",
                                 }}
                             />
                         ))}
@@ -224,29 +307,21 @@ const TechnicianCalendar = () => {
                     <Typography variant="h6" sx={{ flexGrow: 1 }}>
                         Agenda Mensal do Técnico
                     </Typography>
-                    <IconButton
-                        edge="end"
-                        color="inherit"
-                        aria-label="logout"
-                        onClick={handleLogout}
-                    >
+                    <IconButton edge="end" color="inherit" onClick={handleLogout}>
                         <LogoutIcon />
                     </IconButton>
                 </Toolbar>
             </AppBar>
 
+            {/* Card com o título (sem os botões) */}
             <Card sx={{ padding: 2, marginBottom: 2 }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                        Manutenções Programadas
-                    </Typography>
-                    <Button variant="contained" color="primary" onClick={handleOpenModal}>
-                        Adicionar Cadastro
-                    </Button>
-                </Box>
+                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                    Manutenções Programadas
+                </Typography>
             </Card>
 
-            <Card sx={{ padding: 2 }}>
+            {/* Calendário (dando uma margem extra pro FAB não cobrir) */}
+            <Card sx={{ padding: 2, marginBottom: 8 }}>
                 <Calendar
                     onChange={setDate}
                     value={date}
@@ -256,208 +331,52 @@ const TechnicianCalendar = () => {
                 />
             </Card>
 
-            {/* Modal para cadastro de Cliente ou Gerador */}
-            <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-                <DialogTitle>Novo Cadastro</DialogTitle>
-                <DialogContent>
-                    {/* Seletor para o tipo de cadastro */}
-                    <FormControl fullWidth sx={{ marginTop: 2 }}>
-                        <InputLabel>Tipo</InputLabel>
-                        <Select
-                            label="Tipo"
-                            value={entryType}
-                            onChange={(e) => setEntryType(e.target.value)}
-                        >
-                            <MenuItem value="generator">Gerador</MenuItem>
-                            <MenuItem value="client">Cliente</MenuItem>
-                        </Select>
-                    </FormControl>
+            {/* FAB SpeedDial no canto inferior direito */}
+            <SpeedDial
+                ariaLabel="SpeedDial para adicionar cadastros"
+                sx={{ position: "fixed", bottom: 16, right: 16 }}
+                icon={<SpeedDialIcon />}
+            >
+                <SpeedDialAction
+                    icon={<AddIcon />}
+                    tooltipTitle="Adicionar Gerador"
+                    onClick={() => handleOpenModal("generator")}
+                />
+                <SpeedDialAction
+                    icon={<PersonAddIcon />}
+                    tooltipTitle="Adicionar Cliente"
+                    onClick={() => handleOpenModal("client")}
+                />
+            </SpeedDial>
 
-                    {/* Formulário para Cliente */}
-                    {entryType === "client" && (
-                        <>
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="Nome do Cliente"
-                                value={newCustomer.name}
-                                onChange={(e) =>
-                                    setNewCustomer({ ...newCustomer, name: e.target.value })
-                                }
-                            />
+            {/* MODALS - Generator ou Client, conforme entryType */}
+            {entryType === "generator" && (
+                <GeneratorModal
+                    open={openModal}
+                    onClose={handleCloseModal}
+                    onSave={handleSaveGenerator}
+                    // Formulários/estados do gerador
+                    newGenerator={newGenerator}
+                    setNewGenerator={setNewGenerator}
+                    extraFields={newGeneratorExtraFields}
+                    addExtraField={addNewGeneratorExtraField}
+                    removeExtraField={removeNewGeneratorExtraField}
+                    handleExtraFieldChange={handleNewGeneratorExtraFieldChange}
+                    // Lista de clientes (para o dropdown)
+                    clients={clients}
+                />
+            )}
 
-                            <InputMask
-                                mask={
-                                    newCustomer.document.replace(/\D/g, "").length > 11
-                                        ? "99.999.999/9999-99"
-                                        : "999.999.999-99"
-                                }
-                                value={newCustomer.document}
-                                onChange={(e) =>
-                                    setNewCustomer({ ...newCustomer, document: e.target.value })
-                                }
-                            >
-                                {(inputProps) => (
-                                    <TextField {...inputProps} label="CPF/CNPJ" fullWidth margin="dense" />
-                                )}
-                            </InputMask>
-
-                            <InputMask
-                                mask="(99) 99999-9999"
-                                value={newCustomer.phone}
-                                onChange={(e) =>
-                                    setNewCustomer({ ...newCustomer, phone: e.target.value })
-                                }
-                            >
-                                {(inputProps) => (
-                                    <TextField {...inputProps} label="Telefone" fullWidth margin="dense" />
-                                )}
-                            </InputMask>
-
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="E-mail"
-                                value={newCustomer.email}
-                                onChange={(e) =>
-                                    setNewCustomer({ ...newCustomer, email: e.target.value })
-                                }
-                            />
-
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="Endereço"
-                                value={newCustomer.address}
-                                onChange={(e) =>
-                                    setNewCustomer({ ...newCustomer, address: e.target.value })
-                                }
-                            />
-                        </>
-                    )}
-
-                    {/* Formulário para Gerador */}
-                    {entryType === "generator" && (
-                        <>
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="Nome do Gerador"
-                                value={newGenerator.name}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, name: e.target.value })
-                                }
-                            />
-
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="Número de Série"
-                                value={newGenerator.serialNumber}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, serialNumber: e.target.value })
-                                }
-                            />
-
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="Localização"
-                                value={newGenerator.location}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, location: e.target.value })
-                                }
-                            />
-
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="Data de Compra"
-                                type="date"
-                                InputLabelProps={{ shrink: true }}
-                                value={newGenerator.purchaseDate}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, purchaseDate: e.target.value })
-                                }
-                            />
-
-                            <TextField
-                                fullWidth
-                                sx={{ marginTop: 2 }}
-                                label="Data de Entrega Técnica"
-                                type="date"
-                                InputLabelProps={{ shrink: true }}
-                                value={newGenerator.deliveryDate}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, deliveryDate: e.target.value })
-                                }
-                            />
-
-                            <TextField
-                                label="Status"
-                                select
-                                fullWidth
-                                margin="dense"
-                                SelectProps={{ native: true }}
-                                InputLabelProps={{ shrink: true }}
-                                value={newGenerator.status}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, status: e.target.value })
-                                }
-                            >
-                                <option value="disponivel">Disponível</option>
-                                <option value="alugado">Alugado</option>
-                                <option value="em manutencao">Em Manutenção</option>
-                                <option value="ativo">Ativo</option>
-                            </TextField>
-
-                            <TextField
-                                label="Propriedade do Gerador"
-                                select
-                                fullWidth
-                                margin="dense"
-                                SelectProps={{ native: true }}
-                                InputLabelProps={{ shrink: true }}
-                                value={newGenerator.ownershipType}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, ownershipType: e.target.value })
-                                }
-                            >
-                                <option value="Empresa">Empresa</option>
-                                <option value="Terceiro">Terceiro</option>
-                            </TextField>
-
-                            <TextField
-                                label="Cliente (Opcional)"
-                                select
-                                fullWidth
-                                margin="dense"
-                                SelectProps={{ native: true }}
-                                InputLabelProps={{ shrink: true }}
-                                value={newGenerator.customerId}
-                                onChange={(e) =>
-                                    setNewGenerator({ ...newGenerator, customerId: e.target.value })
-                                }
-                            >
-                                <option value="">Sem Cliente</option>
-                                {clients.map((client) => (
-                                    <option key={client.objectId} value={client.objectId}>
-                                        {client.name}
-                                    </option>
-                                ))}
-                            </TextField>
-                        </>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseModal} color="secondary">
-                        Cancelar
-                    </Button>
-                    <Button onClick={handleSaveEntry} color="primary" variant="contained">
-                        Salvar
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {entryType === "client" && (
+                <ClientModal
+                    open={openModal}
+                    onClose={handleCloseModal}
+                    onSave={handleSaveClient}
+                    // Formulários/estados do cliente
+                    newCustomer={newCustomer}
+                    setNewCustomer={setNewCustomer}
+                />
+            )}
         </Box>
     );
 };
