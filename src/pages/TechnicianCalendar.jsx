@@ -73,8 +73,8 @@ const TechnicianCalendar = () => {
         location: "",
         purchaseDate: "",
         lastMaintenanceDate: "",
-        deliveryDate: "",     // Adicionado
-        horimetroAtual: "",   // Adicionado
+        deliveryDate: "",
+        horimetroAtual: "",
         status: "disponivel",
         motor: "",
         modelo: "",
@@ -99,7 +99,7 @@ const TechnicianCalendar = () => {
         try {
             const response = await api.post(
                 "/functions/getMaintenancesByTech",
-                { technicianId },
+                { technicianId }, // se for preciso passar no body
                 {
                     headers: {
                         "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
@@ -164,16 +164,17 @@ const TechnicianCalendar = () => {
         setNewGenerator({
             name: "",
             serialNumber: "",
-            customerId: "",
             location: "",
             purchaseDate: "",
             lastMaintenanceDate: "",
+            deliveryDate: "",
+            horimetroAtual: "",
             status: "disponivel",
-            ownershipType: "Empresa",
             motor: "",
             modelo: "",
             fabricante: "",
             potencia: "",
+            customerId: "",
         });
         setNewGeneratorExtraFields([]);
 
@@ -192,7 +193,7 @@ const TechnicianCalendar = () => {
     // ----------------------------------------------------------------------------
     const handleSaveClient = async () => {
         try {
-            // Remover máscaras (documento e telefone)
+            // Remover máscaras (documento e telefone), se tiver
             const payload = {
                 ...newCustomer,
                 document: newCustomer.document.replace(/\D/g, ""),
@@ -215,9 +216,10 @@ const TechnicianCalendar = () => {
     };
 
     // ----------------------------------------------------------------------------
-    // SALVAR GERADOR
+    // SALVAR GERADOR (com forceSchedule)
     // ----------------------------------------------------------------------------
-    const handleSaveGenerator = async () => {
+    // Agora o "GeneratorModal" chamará onSave(forceSchedule).
+    const handleSaveGenerator = async (forceSchedule) => {
         // Se o status for "Vendido", cliente é obrigatório
         if (newGenerator.status === "Vendido" && !newGenerator.customerId) {
             alert("É obrigatório informar o Cliente quando o gerador está 'Vendido'.");
@@ -227,6 +229,7 @@ const TechnicianCalendar = () => {
         const payload = {
             ...newGenerator,
             extraFields: newGeneratorExtraFields,
+            forceSchedule, // <-- enviamos a flag se for marcada no modal
         };
 
         try {
@@ -270,9 +273,11 @@ const TechnicianCalendar = () => {
             const dayString = dayDate.toISOString().split("T")[0];
             const count = maintenances.filter((m) => {
                 let maintDateStr = "";
-                if (m.maintenanceDate && typeof m.maintenanceDate === "string") {
+                if (typeof m.maintenanceDate === "string") {
+                    // ex: "2025-02-21T00:00:00.000Z"
                     maintDateStr = m.maintenanceDate.split("T")[0];
                 } else if (m.maintenanceDate?.iso) {
+                    // ex: { __type: "Date", iso: "2025-02-21T00:00:00.000Z" }
                     maintDateStr = m.maintenanceDate.iso.split("T")[0];
                 }
                 return maintDateStr === dayString;
@@ -349,7 +354,7 @@ const TechnicianCalendar = () => {
                 />
             </SpeedDial>
 
-            {/* MODALS - Generator ou Client, conforme entryType */}
+            {/* MODAL DE GERADOR ou CLIENT, conforme entryType */}
             {entryType === "generator" && (
                 <GeneratorModal
                     open={openModal}
@@ -364,6 +369,8 @@ const TechnicianCalendar = () => {
                     handleExtraFieldChange={handleNewGeneratorExtraFieldChange}
                     // Lista de clientes (para o dropdown)
                     clients={clients}
+                    // Sempre criação => editing = false
+                    editing={false}
                 />
             )}
 

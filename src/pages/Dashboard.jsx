@@ -63,6 +63,16 @@ export default function Dashboard() {
   const [tabValue, setTabValue] = useState(0);
 
   // ---------------------------
+  //      FORÇANDO ANIMAÇÃO
+  // ---------------------------
+  // Sempre que stats mudar, incrementamos chartKey para forçar remontagem do gráfico
+  const [chartKey, setChartKey] = useState(0);
+  useEffect(() => {
+    // Quando 'stats' é atualizado, re-renderiza o gráfico
+    setChartKey((prev) => prev + 1);
+  }, [stats]);
+
+  // ---------------------------
   //      HANDLERS E FUNÇÕES
   // ---------------------------
   const handleChangeTab = (event, newValue) => {
@@ -164,7 +174,6 @@ export default function Dashboard() {
             }
           }
         );
-        // --> Aqui está o console.log para depurar:
         console.log("BACKEND partsAbove50 =>", response.data.result.partsAbove50);
 
         if (response.data.result?.partsAbove50) {
@@ -293,8 +302,9 @@ export default function Dashboard() {
     {
       field: "usagePercent",
       headerName: "% de Uso",
-      width: 120,
-
+      width: 120
+      // Sem valueFormatter => exibe o valor do backend diretamente
+      // Se quiser formatar, é só re-adicionar o valueFormatter
     }
   ];
 
@@ -399,6 +409,7 @@ export default function Dashboard() {
                   Distribuição de Geradores
                 </Typography>
               </Box>
+
               {loadingStats ? (
                 <Skeleton variant="rectangular" width="100%" height={200} />
               ) : pieData.length === 0 ? (
@@ -406,8 +417,9 @@ export default function Dashboard() {
                   Nenhum dado para exibir no gráfico.
                 </Typography>
               ) : (
+                // Adicionamos a key={chartKey} para forçar animação
                 <Box sx={{ width: "100%", height: 250 }}>
-                  <ResponsiveContainer>
+                  <ResponsiveContainer key={chartKey}>
                     <PieChart>
                       <Pie
                         data={pieData}
@@ -415,6 +427,10 @@ export default function Dashboard() {
                         nameKey="name"
                         outerRadius={80}
                         label
+                        // Opções de animação
+                        isAnimationActive
+                        animationDuration={800}
+                        animationEasing="ease-out"
                       >
                         {pieData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -436,7 +452,11 @@ export default function Dashboard() {
 
       {/* TABELAS EM ABAS (TABS) */}
       <Paper elevation={3} sx={{ mt: 2, p: 2 }}>
-        <Tabs value={tabValue} onChange={handleChangeTab} indicatorColor="primary">
+        <Tabs
+          value={tabValue}
+          onChange={handleChangeTab}
+          indicatorColor="primary"
+        >
           <Tab label="Próx. 2 Semanas" />
           <Tab label="Próx. 30 Dias" />
           <Tab label="Peças (+50% Uso)" />

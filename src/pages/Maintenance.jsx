@@ -18,7 +18,7 @@ import {
   DialogContent,
   DialogTitle,
   Chip,
-  Tooltip
+  Tooltip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -38,7 +38,7 @@ function Maintenance() {
     maintenanceDate: "",
     startTime: "",
     endTime: "",
-    status: "Agendada"
+    status: "Agendada",
   });
 
   // Converte "HH:MM" em minutos
@@ -56,14 +56,14 @@ function Maintenance() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
+          }
         }
       );
 
       if (response.data.result) {
         const formatted = response.data.result.map((m) => {
           const isoString = m.maintenanceDate?.iso || "";
-          const justDate = isoString.split("T")[0];
+          const justDate = isoString.split("T")[0]; // ex: "2025-02-21"
           return {
             objectId: m.objectId,
             generatorId: m.generatorId?.objectId || "",
@@ -93,7 +93,7 @@ function Maintenance() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
+          }
         }
       );
 
@@ -114,7 +114,7 @@ function Maintenance() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
+          }
         }
       );
 
@@ -126,6 +126,7 @@ function Maintenance() {
     }
   };
 
+  // Carrega dados iniciais
   useEffect(() => {
     fetchMaintenances();
     fetchGenerators();
@@ -135,6 +136,8 @@ function Maintenance() {
   // Abre modal (criação ou edição)
   const handleOpen = (maintenance = null) => {
     if (maintenance) {
+      console.log("Editando manutenção:", maintenance); // <-- LOG do objeto a ser editado
+
       setEditingMaintenance(maintenance);
       setFormData({
         generatorId: maintenance.generatorId || "",
@@ -177,11 +180,12 @@ function Maintenance() {
         return;
       }
 
-      // Verifica sobreposição
-      const sameDay = maintenances.filter((m) =>
-        m.technicianId === formData.technicianId &&
-        m.maintenanceDate === formData.maintenanceDate &&
-        m.objectId !== editingMaintenance?.objectId
+      // Verifica sobreposição de horário no mesmo dia e mesmo técnico
+      const sameDay = maintenances.filter(
+        (m) =>
+          m.technicianId === formData.technicianId &&
+          m.maintenanceDate === formData.maintenanceDate &&
+          m.objectId !== editingMaintenance?.objectId // descarta a que está sendo editada
       );
 
       for (const m of sameDay) {
@@ -215,24 +219,42 @@ function Maintenance() {
         status: formData.status,
       };
 
+      console.log("Dados da manutenção para salvar:", {
+        editingMaintenance,
+        ...maintenancePayload,
+      }); // <-- LOG do que está sendo enviado no save
+
       let newMaintenanceId = null;
 
+      // Se já estiver editando uma manutenção existente, chama update
       if (editingMaintenance) {
         await api.post(
           "/functions/updateMaintenance",
-          { maintenanceId: editingMaintenance.objectId, ...maintenancePayload },
-          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+          {
+            maintenanceId: editingMaintenance.objectId,
+            ...maintenancePayload,
+          },
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            }
+          }
         );
       } else {
+        // Caso contrário, cria manutenção nova
         const respCreate = await api.post(
           "/functions/createMaintenance",
           maintenancePayload,
-          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            }
+          }
         );
         newMaintenanceId = respCreate.data?.result?.objectId;
       }
 
-      // Se for nova manutenção, cria Ordem
+      // Se for nova manutenção e criou com sucesso, gera uma Ordem de Serviço (OS)
       if (!editingMaintenance && newMaintenanceId) {
         await api.post(
           "/functions/createOrder",
@@ -256,10 +278,15 @@ function Maintenance() {
             description: "OS gerada automaticamente",
             date: new Date(formData.maintenanceDate).toISOString(),
           },
-          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            }
+          }
         );
       }
 
+      // Atualiza a tabela
       fetchMaintenances();
       handleClose();
     } catch (error) {
@@ -267,14 +294,18 @@ function Maintenance() {
     }
   };
 
-  // Exclui manutenção
+  // Exclui manutenção (soft delete)
   const handleDelete = async (maintenanceId) => {
-    console.log(maintenanceId)
+    console.log("Excluindo manutenção ID:", maintenanceId); // <-- LOG do ID que está sendo excluído
     try {
       await api.post(
         "/functions/softDeleteMaintenance",
         { maintenanceId },
-        { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          }
+        }
       );
       fetchMaintenances();
     } catch (error) {
@@ -300,12 +331,24 @@ function Maintenance() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell><strong>Gerador</strong></TableCell>
-              <TableCell><strong>Cliente</strong></TableCell>
-              <TableCell><strong>Técnico</strong></TableCell>
-              <TableCell><strong>Data</strong></TableCell>
-              <TableCell><strong>Status</strong></TableCell>
-              <TableCell align="center"><strong>Ações</strong></TableCell>
+              <TableCell>
+                <strong>Gerador</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Cliente</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Técnico</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Data</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Status</strong>
+              </TableCell>
+              <TableCell align="center">
+                <strong>Ações</strong>
+              </TableCell>
             </TableRow>
           </TableHead>
 
@@ -354,6 +397,7 @@ function Maintenance() {
         </Table>
       </TableContainer>
 
+      {/* Dialog de criação/edição de manutenção */}
       <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
         <DialogTitle>
           {editingMaintenance ? "Editar Manutenção" : "Nova Manutenção"}

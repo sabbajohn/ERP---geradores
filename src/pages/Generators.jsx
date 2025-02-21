@@ -26,7 +26,6 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import { Link } from "react-router-dom";
 import api from "../services/api";
@@ -67,20 +66,18 @@ function Generators() {
   // Campo de busca
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Snackbar para notificação com aviso maior
+  // Snackbar para notificação
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // Função auxiliar para formatar data no formato DD/MM/YYYY sem conversão de fuso horário
+  // Auxiliar para formatar data
   const formatDateOnly = (dateString) => {
     if (!dateString) return "—";
     const [year, month, day] = dateString.split("T")[0].split("-");
     return `${day}/${month}/${year}`;
   };
 
-  // --------------------------------------------
   // 1) BUSCAR CLIENTES E GERADORES
-  // --------------------------------------------
   const fetchCustomers = async () => {
     try {
       const response = await api.post(
@@ -150,9 +147,7 @@ function Generators() {
     }
   };
 
-  // ----------------------------------------------
   // BUSCAR ITENS DO ESTOQUE
-  // ----------------------------------------------
   const [inventoryItems, setInventoryItems] = useState([]);
 
   const fetchInventoryItems = async () => {
@@ -171,12 +166,10 @@ function Generators() {
     }
   };
 
-  // --------------------------------------------
   // 2) FUNÇÃO PARA ABRIR O MODAL (novo ou editar)
-  // --------------------------------------------
   const handleOpen = (generator = null) => {
     if (generator) {
-      // Modo Edição: carrega todos os campos previamente preenchidos
+      // Modo Edição
       setEditingGenerator(generator);
       setNewGenerator({
         name: generator.name || "",
@@ -185,7 +178,6 @@ function Generators() {
         purchaseDate: generator.purchaseDate ? generator.purchaseDate.slice(0, 10) : "",
         lastMaintenanceDate: generator.lastMaintenanceDate ? generator.lastMaintenanceDate.slice(0, 10) : "",
         deliveryDate: generator.deliveryDate ? generator.deliveryDate.slice(0, 10) : "",
-        // Converte o horímetro para string, caso seja numérico
         horimetroAtual:
           generator.horimetroAtual !== undefined && generator.horimetroAtual !== null
             ? String(generator.horimetroAtual)
@@ -195,7 +187,6 @@ function Generators() {
         modelo: generator.modelo || "",
         fabricante: generator.fabricante || "",
         potencia: generator.potencia || "",
-        // Se a API retornar o cliente em customerId ou dentro de um objeto customer
         customerId: generator.customerId || (generator.customer ? generator.customer.objectId : ""),
       });
       setExtraFields(generator.extraFields || []);
@@ -224,19 +215,25 @@ function Generators() {
 
   const handleClose = () => setOpen(false);
 
-  // --------------------------------------------
   // 3) SALVAR (Create ou Update)
-  // --------------------------------------------
-  const handleSave = async () => {
+  const handleSave = async (forceSchedule) => {
     try {
+      // Exemplo: se for "Vendido", exige um cliente
       if (newGenerator.status === "Vendido" && !newGenerator.customerId) {
         alert("É obrigatório informar o cliente ao vender o gerador.");
         return;
       }
 
-      const payload = { ...newGenerator, extraFields };
+      // Montamos o payload que vai para a API
+      const payload = {
+        ...newGenerator,
+        extraFields,
+        // Se quisermos passar a flag "forceSchedule" para o back-end
+        forceSchedule, // <-- AQUI
+      };
 
       if (editingGenerator) {
+        // Edição
         await api.post(
           "/functions/updateGenerator",
           {
@@ -246,21 +243,27 @@ function Generators() {
           {
             headers: {
               "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-            },
+            }
           }
         );
       } else {
-        await api.post("/functions/createGenerator", payload, {
-          headers: {
-            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
-        });
+        // Criação
+        await api.post(
+          "/functions/createGenerator",
+          payload,
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            }
+          }
+        );
       }
 
       fetchGenerators();
       handleClose();
 
-      if (newGenerator.deliveryDate) {
+      // Se usuário marcou para criar manutenções e existe deliveryDate
+      if (forceSchedule && newGenerator.deliveryDate) {
         const deliveryDate = new Date(newGenerator.deliveryDate + "T12:00:00");
         const threeMonths = new Date(deliveryDate);
         threeMonths.setMonth(threeMonths.getMonth() + 3);
@@ -268,7 +271,12 @@ function Generators() {
         sixMonths.setMonth(sixMonths.getMonth() + 6);
         const twelveMonths = new Date(deliveryDate);
         twelveMonths.setMonth(twelveMonths.getMonth() + 12);
-        const message = `Manutenções agendadas para: ${threeMonths.toLocaleDateString("pt-BR")}, ${sixMonths.toLocaleDateString("pt-BR")} e ${twelveMonths.toLocaleDateString("pt-BR")}.`;
+
+        const message = `Manutenções (3, 6 e 12 meses) agendadas para: 
+          ${threeMonths.toLocaleDateString("pt-BR")}, 
+          ${sixMonths.toLocaleDateString("pt-BR")} e 
+          ${twelveMonths.toLocaleDateString("pt-BR")}.`;
+
         setSnackbarMessage(message);
         setSnackbarOpen(true);
       }
@@ -277,9 +285,7 @@ function Generators() {
     }
   };
 
-  // --------------------------------------------
   // 4) SOFT DELETE
-  // --------------------------------------------
   const handleDelete = async (generatorId) => {
     if (!window.confirm("Tem certeza que deseja excluir este gerador?")) return;
     try {
@@ -289,7 +295,7 @@ function Generators() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
+          }
         }
       );
       fetchGenerators();
@@ -298,9 +304,7 @@ function Generators() {
     }
   };
 
-  // --------------------------------------------
   // 5) LÓGICA SUB-FORM EXTRA FIELDS
-  // --------------------------------------------
   const addExtraField = () => {
     setExtraFields([...extraFields, { fieldName: "", fieldValue: "" }]);
   };
@@ -317,9 +321,7 @@ function Generators() {
     setExtraFields(updated);
   };
 
-  // --------------------------------------------
   // 6) PEÇAS DE DESGASTE (modal separado)
-  // --------------------------------------------
   const [openPartsModal, setOpenPartsModal] = useState(false);
   const [partsGenerator, setPartsGenerator] = useState(null);
   const [generatorParts, setGeneratorParts] = useState([]);
@@ -417,9 +419,7 @@ function Generators() {
     }
   };
 
-  // --------------------------------------------
   // FILTRO DE BUSCA
-  // --------------------------------------------
   const filteredGenerators = generators.filter((g) => {
     const lowerSearch = searchTerm.toLowerCase();
     const generatorName = (g.name || "").toLowerCase();
@@ -430,9 +430,7 @@ function Generators() {
     );
   });
 
-  // --------------------------------------------
   // RENDER
-  // --------------------------------------------
   return (
     <Container maxWidth="lg">
       {/* TÍTULO E BOTÃO CRIAR */}
@@ -549,6 +547,7 @@ function Generators() {
       <GeneratorModal
         open={open}
         onClose={handleClose}
+        // Note que passamos a função que recebe forceSchedule como argumento
         onSave={handleSave}
         newGenerator={newGenerator}
         setNewGenerator={setNewGenerator}
@@ -562,7 +561,12 @@ function Generators() {
 
       {/* Snackbar */}
       <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
-        <Alert onClose={() => setSnackbarOpen(false)} severity="info" variant="filled" sx={{ fontSize: "1.2rem", padding: "16px" }}>
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity="info"
+          variant="filled"
+          sx={{ fontSize: "1.2rem", padding: "16px" }}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>
@@ -587,7 +591,9 @@ function Generators() {
             </Box>
           ))}
           <Box sx={{ mt: 2, p: 2, border: "1px solid #ddd", borderRadius: "4px" }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Adicionar Nova Peça</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Adicionar Nova Peça
+            </Typography>
             <TextField
               select
               label="Selecione um Item do Estoque (opcional)"
@@ -595,11 +601,11 @@ function Generators() {
               margin="dense"
               fullWidth
               value={newPartData.inventoryItemId}
-              onChange={(e) =>
-                setNewPartData({ ...newPartData, inventoryItemId: e.target.value })
-              }
+              onChange={(e) => setNewPartData({ ...newPartData, inventoryItemId: e.target.value })}
             >
-              <MenuItem value=""><em>Nenhum selecionado</em></MenuItem>
+              <MenuItem value="">
+                <em>Nenhum selecionado</em>
+              </MenuItem>
               {inventoryItems.map((item) => (
                 <MenuItem key={item.objectId} value={item.objectId}>
                   {item.itemName} (Estoque: {item.quantity})
@@ -612,9 +618,7 @@ function Generators() {
               margin="dense"
               type="number"
               value={newPartData.intervalHours}
-              onChange={(e) =>
-                setNewPartData({ ...newPartData, intervalHours: e.target.value })
-              }
+              onChange={(e) => setNewPartData({ ...newPartData, intervalHours: e.target.value })}
             />
             <Box sx={{ textAlign: "right", mt: 2 }}>
               <Button variant="contained" onClick={handleAddGeneratorPart}>
@@ -624,7 +628,9 @@ function Generators() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseParts} color="secondary">Fechar</Button>
+          <Button onClick={handleCloseParts} color="secondary">
+            Fechar
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

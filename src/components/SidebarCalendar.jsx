@@ -238,7 +238,7 @@ function Sidebar({ onClose }) {
             textTransform: "none",
           }}
         >
-          Sabbah Systems
+          Atendimento
         </Button>
       </Box>
     </Box>

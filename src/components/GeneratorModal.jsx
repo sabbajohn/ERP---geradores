@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box,
     TextField,
@@ -12,6 +12,8 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
+    Switch,
+    FormControlLabel,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 
@@ -30,13 +32,23 @@ const GeneratorModal = ({
 }) => {
     const [horimetroError, setHorimetroError] = useState(false);
 
+    // Flag local para indicar se o usuário quer gerar manutenções automáticas
+    const [forceSchedule, setForceSchedule] = useState(false);
+
+    // Sempre que abrir o modal, resetamos o forceSchedule (pode ajustar se quiser outra lógica)
+    useEffect(() => {
+        setForceSchedule(false);
+    }, [open]);
+
     const handleSaveClick = () => {
         if (newGenerator.horimetroAtual === "") {
             setHorimetroError(true);
             return;
         }
         setHorimetroError(false);
-        onSave();
+
+        // Chama a função onSave do pai, passando se o usuário quer gerar manutenções ou não
+        onSave(forceSchedule);
     };
 
     return (
@@ -161,6 +173,7 @@ const GeneratorModal = ({
                     value={newGenerator.potencia}
                     onChange={(e) => setNewGenerator({ ...newGenerator, potencia: e.target.value })}
                 />
+
                 <Box mt={2} mb={1}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: "bold" }}>
                         Campos Adicionais
@@ -190,9 +203,25 @@ const GeneratorModal = ({
                         Adicionar Campo
                     </Button>
                 </Box>
+
+                {/* Só mostra a opção de gerar manutenções se houver uma data de entrega */}
+                {newGenerator.deliveryDate && (
+                    <FormControlLabel
+                        sx={{ marginTop: 2 }}
+                        control={
+                            <Switch
+                                checked={forceSchedule}
+                                onChange={(e) => setForceSchedule(e.target.checked)}
+                            />
+                        }
+                        label="Gerar Manutenções de 3, 6 e 12 meses"
+                    />
+                )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose} color="secondary">Cancelar</Button>
+                <Button onClick={onClose} color="secondary">
+                    Cancelar
+                </Button>
                 <Button onClick={handleSaveClick} color="primary" variant="contained">
                     Salvar
                 </Button>

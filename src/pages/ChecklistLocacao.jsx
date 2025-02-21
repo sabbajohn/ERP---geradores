@@ -20,7 +20,6 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import CheckIcon from "@mui/icons-material/Check";
-import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import AddIcon from "@mui/icons-material/Add";
 import api from "../services/api";
 
@@ -55,7 +54,7 @@ function ChecklistLocacao() {
     // Controle do fluxo (saída ou devolução)
     const [fluxo, setFluxo] = useState("");
 
-    // Lista de geradores e clientes
+    // Listas de geradores e clientes
     const [geradoresDisponiveis, setGeradoresDisponiveis] = useState([]);
     const [geradoresAlugados, setGeradoresAlugados] = useState([]);
     const [clientes, setClientes] = useState([]);
@@ -73,10 +72,7 @@ function ChecklistLocacao() {
     const [fotosDevolucao, setFotosDevolucao] = useState([]);
 
     // -------------- MODAL GERADOR (Novo Gerador) --------------
-    // Estado para controlar abertura do modal de gerador
     const [openGeneratorModal, setOpenGeneratorModal] = useState(false);
-    // Estado para os dados do novo gerador – note que incluímos campos
-    // semelhantes ao que é utilizado no GeneratorModal (conforme a tela Geradores)
     const [newGenerator, setNewGenerator] = useState({
         name: "",
         serialNumber: "",
@@ -92,20 +88,18 @@ function ChecklistLocacao() {
         potencia: "",
         customerId: "",
     });
-    // Sub-form para extraFields
+    // ExtraFields
     const [extraFields, setExtraFields] = useState([]);
 
     // Funções para extraFields
     const addExtraField = () => {
         setExtraFields([...extraFields, { fieldName: "", fieldValue: "" }]);
     };
-
     const removeExtraField = (index) => {
         const updated = [...extraFields];
         updated.splice(index, 1);
         setExtraFields(updated);
     };
-
     const handleExtraFieldChange = (index, key, value) => {
         const updated = [...extraFields];
         updated[index][key] = value;
@@ -170,26 +164,10 @@ function ChecklistLocacao() {
     const fetchData = async () => {
         try {
             const sessionToken = localStorage.getItem("sessionToken") || "";
-            const [
-                respDisponiveis,
-                respAlugados,
-                respClientes,
-            ] = await Promise.all([
-                api.post(
-                    "/functions/getAvailableGenerators",
-                    {},
-                    { headers: { "X-Parse-Session-Token": sessionToken } }
-                ),
-                api.post(
-                    "/functions/getRentedGenerators",
-                    {},
-                    { headers: { "X-Parse-Session-Token": sessionToken } }
-                ),
-                api.post(
-                    "/functions/getAllCustomers",
-                    {},
-                    { headers: { "X-Parse-Session-Token": sessionToken } }
-                ),
+            const [respDisponiveis, respAlugados, respClientes] = await Promise.all([
+                api.post("/functions/getAvailableGenerators", {}, { headers: { "X-Parse-Session-Token": sessionToken } }),
+                api.post("/functions/getRentedGenerators", {}, { headers: { "X-Parse-Session-Token": sessionToken } }),
+                api.post("/functions/getAllCustomers", {}, { headers: { "X-Parse-Session-Token": sessionToken } }),
             ]);
 
             setGeradoresDisponiveis(respDisponiveis?.data?.result || []);
@@ -223,9 +201,7 @@ function ChecklistLocacao() {
         setFluxo(newFluxo);
 
         // Reset do checklist e fotos
-        setChecklist(
-            checklistItems.map((item) => ({ label: item, status: "", observacao: "" }))
-        );
+        setChecklist(checklistItems.map((item) => ({ label: item, status: "", observacao: "" })));
         setFotosSaida([]);
         setFotosDevolucao([]);
         setHorimetro("");
@@ -239,8 +215,7 @@ function ChecklistLocacao() {
     const fileToBase64 = (file) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = () =>
-                resolve((reader.result || "").toString().split(",")[1]);
+            reader.onload = () => resolve((reader.result || "").toString().split(",")[1]);
             reader.onerror = reject;
             reader.readAsDataURL(file);
         });
@@ -335,11 +310,7 @@ function ChecklistLocacao() {
             if (response.data.result) {
                 const updatedChecklist = response.data.result.checklist;
                 if (updatedChecklist?.objectId) {
-                    await uploadFotos(
-                        updatedChecklist.objectId,
-                        "devolucao",
-                        fotosDevolucao
-                    );
+                    await uploadFotos(updatedChecklist.objectId, "devolucao", fotosDevolucao);
                     // Abre modal de assinatura
                     setChecklistIdToSign(updatedChecklist.objectId);
                     setModoAssinatura("devolucao");
@@ -362,16 +333,8 @@ function ChecklistLocacao() {
         try {
             const sessionToken = localStorage.getItem("sessionToken") || "";
             const [respDisponiveis, respAlugados] = await Promise.all([
-                api.post(
-                    "/functions/getAvailableGenerators",
-                    {},
-                    { headers: { "X-Parse-Session-Token": sessionToken } }
-                ),
-                api.post(
-                    "/functions/getRentedGenerators",
-                    {},
-                    { headers: { "X-Parse-Session-Token": sessionToken } }
-                ),
+                api.post("/functions/getAvailableGenerators", {}, { headers: { "X-Parse-Session-Token": sessionToken } }),
+                api.post("/functions/getRentedGenerators", {}, { headers: { "X-Parse-Session-Token": sessionToken } }),
             ]);
             setGeradoresDisponiveis(respDisponiveis?.data?.result || []);
             setGeradoresAlugados(respAlugados?.data?.result || []);
@@ -387,9 +350,7 @@ function ChecklistLocacao() {
         setGeradorSelecionado(null);
         setClienteSelecionado(null);
         setHorimetro("");
-        setChecklist(
-            checklistItems.map((item) => ({ label: item, status: "", observacao: "" }))
-        );
+        setChecklist(checklistItems.map((item) => ({ label: item, status: "", observacao: "" })));
         setFotosSaida([]);
         setFotosDevolucao([]);
     };
@@ -536,17 +497,27 @@ function ChecklistLocacao() {
     );
 
     // -----------------------------------------------------
-    // Função para salvar o novo gerador via GeneratorModal
+    // Salvar o novo gerador via GeneratorModal com forceSchedule
     // -----------------------------------------------------
-    const handleSaveGenerator = async () => {
+    const handleSaveGenerator = async (forceSchedule) => {
         try {
             const sessionToken = localStorage.getItem("sessionToken") || "";
-            const payload = { ...newGenerator, extraFields };
+
+            // Monta o payload, incluindo a flag forceSchedule
+            const payload = {
+                ...newGenerator,
+                extraFields,
+                forceSchedule, // <--- AQUI
+            };
+
             await api.post("/functions/createGenerator", payload, {
                 headers: { "X-Parse-Session-Token": sessionToken },
             });
+
+            // Atualiza a lista de geradores e fecha o modal
             await refreshGeradores();
             setOpenGeneratorModal(false);
+
             // Reseta os dados do gerador
             setNewGenerator({
                 name: "",
@@ -617,10 +588,7 @@ function ChecklistLocacao() {
                             sx={{ mt: 2 }}
                         />
                         <Box sx={{ mt: 2 }}>
-                            <Button
-                                variant="outlined"
-                                onClick={() => setOpenGeneratorModal(true)}
-                            >
+                            <Button variant="outlined" onClick={() => setOpenGeneratorModal(true)}>
                                 + Adicionar Gerador
                             </Button>
                         </Box>
@@ -633,16 +601,11 @@ function ChecklistLocacao() {
                             getOptionLabel={(option) => `${option.name} - ${option.document}`}
                             value={clienteSelecionado}
                             onChange={(_, newValue) => setClienteSelecionado(newValue)}
-                            renderInput={(params) => (
-                                <MUITextField {...params} label="Cliente" fullWidth />
-                            )}
+                            renderInput={(params) => <MUITextField {...params} label="Cliente" fullWidth />}
                             sx={{ mt: 2 }}
                         />
                         <Box sx={{ mt: 2 }}>
-                            <Button
-                                variant="outlined"
-                                onClick={() => setOpenCustomerDialog(true)}
-                            >
+                            <Button variant="outlined" onClick={() => setOpenCustomerDialog(true)}>
                                 + Adicionar Cliente
                             </Button>
                         </Box>
@@ -667,11 +630,7 @@ function ChecklistLocacao() {
                     </Paper>
 
                     <Box textAlign="center" sx={{ mt: 3 }}>
-                        <Button
-                            variant="contained"
-                            startIcon={<CheckIcon />}
-                            onClick={handleCriarLocacao}
-                        >
+                        <Button variant="contained" startIcon={<CheckIcon />} onClick={handleCriarLocacao}>
                             Confirmar Saída
                         </Button>
                     </Box>
@@ -686,7 +645,8 @@ function ChecklistLocacao() {
                         <Autocomplete
                             options={geradoresAlugados}
                             getOptionLabel={(option) =>
-                                `${option.serialNumber || option.name} - ${option.customerId?.name || "Sem Cliente"}`
+                                `${option.serialNumber || option.name} - ${option.customerId?.name || "Sem Cliente"
+                                }`
                             }
                             value={geradorSelecionado}
                             onChange={(_, newValue) => setGeradorSelecionado(newValue)}
@@ -716,11 +676,7 @@ function ChecklistLocacao() {
                     </Paper>
 
                     <Box textAlign="center" sx={{ mt: 3 }}>
-                        <Button
-                            variant="contained"
-                            startIcon={<CheckIcon />}
-                            onClick={handleFinalizarLocacao}
-                        >
+                        <Button variant="contained" startIcon={<CheckIcon />} onClick={handleFinalizarLocacao}>
                             Confirmar Devolução
                         </Button>
                     </Box>
@@ -731,6 +687,7 @@ function ChecklistLocacao() {
             <GeneratorModal
                 open={openGeneratorModal}
                 onClose={() => setOpenGeneratorModal(false)}
+                // Agora chamamos handleSaveGenerator que recebe forceSchedule
                 onSave={handleSaveGenerator}
                 newGenerator={newGenerator}
                 setNewGenerator={setNewGenerator}
@@ -739,6 +696,8 @@ function ChecklistLocacao() {
                 addExtraField={addExtraField}
                 removeExtraField={removeExtraField}
                 handleExtraFieldChange={handleExtraFieldChange}
+                // Sempre criação -> editing = false
+                editing={false}
             />
 
             {/* --------------------- MODAL DE CRIAR CLIENTE --------------------- */}
@@ -755,45 +714,35 @@ function ChecklistLocacao() {
                         fullWidth
                         margin="dense"
                         value={newCustomerData.name}
-                        onChange={(e) =>
-                            setNewCustomerData({ ...newCustomerData, name: e.target.value })
-                        }
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
                     />
                     <TextField
                         label="CNPJ/CPF"
                         fullWidth
                         margin="dense"
                         value={newCustomerData.document}
-                        onChange={(e) =>
-                            setNewCustomerData({ ...newCustomerData, document: e.target.value })
-                        }
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, document: e.target.value })}
                     />
                     <TextField
                         label="Telefone"
                         fullWidth
                         margin="dense"
                         value={newCustomerData.phone}
-                        onChange={(e) =>
-                            setNewCustomerData({ ...newCustomerData, phone: e.target.value })
-                        }
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
                     />
                     <TextField
                         label="E-mail"
                         fullWidth
                         margin="dense"
                         value={newCustomerData.email}
-                        onChange={(e) =>
-                            setNewCustomerData({ ...newCustomerData, email: e.target.value })
-                        }
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
                     />
                     <TextField
                         label="Endereço"
                         fullWidth
                         margin="dense"
                         value={newCustomerData.address}
-                        onChange={(e) =>
-                            setNewCustomerData({ ...newCustomerData, address: e.target.value })
-                        }
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, address: e.target.value })}
                     />
                 </DialogContent>
                 <DialogActions>
