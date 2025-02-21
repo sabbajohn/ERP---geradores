@@ -144,7 +144,7 @@ function GeneratorDetails() {
     }
 
     // ------------------------------
-    // Funções de formatação
+    // Funções de formatação (forçando UTC)
     // ------------------------------
     const formatDate = (dateString) => {
         if (!dateString) return "—";
@@ -154,10 +154,10 @@ function GeneratorDetails() {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
+            timeZone: "UTC", // Força a formatação em UTC
         });
     };
 
-    // Formata data e hora (DD/MM/AAAA HH:MM)
     const formatDateTime = (dateString) => {
         if (!dateString) return "—";
         const parsed = new Date(dateString);
@@ -169,6 +169,7 @@ function GeneratorDetails() {
             hour: "2-digit",
             minute: "2-digit",
             hour12: false,
+            timeZone: "UTC", // Força a formatação em UTC
         });
     };
 
@@ -186,8 +187,8 @@ function GeneratorDetails() {
             </Box>
 
             {/* -------------------------------------
-          Detalhes do Gerador (Card)
-      -------------------------------------- */}
+                Detalhes do Gerador (Card)
+            -------------------------------------- */}
             <Card sx={{ mb: 3 }}>
                 <CardHeader title="Detalhes do Gerador" />
                 <CardContent>
@@ -207,7 +208,6 @@ function GeneratorDetails() {
                             <Typography sx={{ mb: 1 }}>
                                 <strong>Status:</strong> {generator.status}
                             </Typography>
-
                             <Typography sx={{ mb: 1 }}>
                                 <strong>Cliente:</strong>{" "}
                                 {generator.customer ? generator.customer.name : "Sem Cliente"}
@@ -273,8 +273,8 @@ function GeneratorDetails() {
             </Card>
 
             {/* -------------------------------------
-          Manutenções Relacionadas (Card)
-      -------------------------------------- */}
+                Manutenções Relacionadas (Card)
+            -------------------------------------- */}
             <Card sx={{ mb: 3 }}>
                 <CardHeader title="Manutenções Relacionadas" />
                 <CardContent>
@@ -327,8 +327,8 @@ function GeneratorDetails() {
             </Card>
 
             {/* -------------------------------------
-          Relatórios de Manutenção (completos)
-      -------------------------------------- */}
+                Relatórios de Manutenção (completos)
+            -------------------------------------- */}
             <Card>
                 <CardHeader title="Relatórios de Manutenção" />
                 <CardContent>

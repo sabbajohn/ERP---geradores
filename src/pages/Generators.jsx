@@ -26,6 +26,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import { Link } from "react-router-dom";
 import api from "../services/api";
@@ -37,13 +38,13 @@ function Generators() {
   const [customersMap, setCustomersMap] = useState({});
   const [clients, setClients] = useState([]);
 
-  // Estado para controle do modal "Novo Gerador" / "Editar Gerador"
-  const [open, setOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState([]);
 
-  // Guarda o gerador que está sendo editado (ou null para novo)
+  // Estados do modal principal
+  const [open, setOpen] = useState(false);
   const [editingGenerator, setEditingGenerator] = useState(null);
 
-  // Estado principal para preencher o modal
+  // Objeto local do form
   const [newGenerator, setNewGenerator] = useState({
     name: "",
     serialNumber: "",
@@ -60,35 +61,42 @@ function Generators() {
     customerId: "",
   });
 
-  // Sub-form: extraFields
+  // Campos adicionais
   const [extraFields, setExtraFields] = useState([]);
 
   // Campo de busca
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Snackbar para notificação
+  // Snackbar
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // Auxiliar para formatar data
+  // ----------------------------------------------------------------------------
+  // HELPERS
+  // ----------------------------------------------------------------------------
   const formatDateOnly = (dateString) => {
     if (!dateString) return "—";
     const [year, month, day] = dateString.split("T")[0].split("-");
     return `${day}/${month}/${year}`;
   };
 
-  // 1) BUSCAR CLIENTES E GERADORES
+  // ----------------------------------------------------------------------------
+  // BUSCAS INICIAIS
+  // ----------------------------------------------------------------------------
+  useEffect(() => {
+    fetchCustomers();
+    fetchGenerators();
+    fetchClients();
+    fetchInventoryItems();
+  }, []);
+
   const fetchCustomers = async () => {
     try {
-      const response = await api.post(
-        "/functions/getAllCustomers",
-        {},
-        {
-          headers: {
-            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
-        }
-      );
+      const response = await api.post("/functions/getAllCustomers", {}, {
+        headers: {
+          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+        },
+      });
       if (response.data.result) {
         const cMap = {};
         response.data.result.forEach((cust) => {
@@ -103,15 +111,11 @@ function Generators() {
 
   const fetchGenerators = async () => {
     try {
-      const response = await api.post(
-        "/functions/getAllGenerators",
-        {},
-        {
-          headers: {
-            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
-        }
-      );
+      const response = await api.post("/functions/getAllGenerators", {}, {
+        headers: {
+          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+        },
+      });
       if (response.data.result) {
         setGenerators(response.data.result);
       }
@@ -120,25 +124,13 @@ function Generators() {
     }
   };
 
-  useEffect(() => {
-    fetchCustomers();
-    fetchGenerators();
-    fetchClients();
-    fetchInventoryItems();
-  }, []);
-
-  // Buscar lista de clientes para o dropdown
   const fetchClients = async () => {
     try {
-      const response = await api.post(
-        "/functions/getAllCustomers",
-        {},
-        {
-          headers: {
-            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          },
-        }
-      );
+      const response = await api.post("/functions/getAllCustomers", {}, {
+        headers: {
+          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+        },
+      });
       if (response.data.result) {
         setClients(response.data.result);
       }
@@ -147,17 +139,12 @@ function Generators() {
     }
   };
 
-  // BUSCAR ITENS DO ESTOQUE
-  const [inventoryItems, setInventoryItems] = useState([]);
-
   const fetchInventoryItems = async () => {
     try {
       const sessionToken = localStorage.getItem("sessionToken") || "";
-      const res = await api.post(
-        "/functions/getAllInventoryItems",
-        {},
-        { headers: { "X-Parse-Session-Token": sessionToken } }
-      );
+      const res = await api.post("/functions/getAllInventoryItems", {}, {
+        headers: { "X-Parse-Session-Token": sessionToken },
+      });
       if (res.data.result) {
         setInventoryItems(res.data.result);
       }
@@ -166,104 +153,117 @@ function Generators() {
     }
   };
 
-  // 2) FUNÇÃO PARA ABRIR O MODAL (novo ou editar)
-  const handleOpen = (generator = null) => {
-    if (generator) {
-      // Modo Edição
-      setEditingGenerator(generator);
-      setNewGenerator({
-        name: generator.name || "",
-        serialNumber: generator.serialNumber || "",
-        location: generator.location || "",
-        purchaseDate: generator.purchaseDate ? generator.purchaseDate.slice(0, 10) : "",
-        lastMaintenanceDate: generator.lastMaintenanceDate ? generator.lastMaintenanceDate.slice(0, 10) : "",
-        deliveryDate: generator.deliveryDate ? generator.deliveryDate.slice(0, 10) : "",
-        horimetroAtual:
-          generator.horimetroAtual !== undefined && generator.horimetroAtual !== null
-            ? String(generator.horimetroAtual)
-            : "",
-        status: generator.status || "disponivel",
-        motor: generator.motor || "",
-        modelo: generator.modelo || "",
-        fabricante: generator.fabricante || "",
-        potencia: generator.potencia || "",
-        customerId: generator.customerId || (generator.customer ? generator.customer.objectId : ""),
-      });
-      setExtraFields(generator.extraFields || []);
-    } else {
-      // Modo Novo
-      setEditingGenerator(null);
-      setNewGenerator({
-        name: "",
-        serialNumber: "",
-        location: "",
-        purchaseDate: "",
-        lastMaintenanceDate: "",
-        deliveryDate: "",
-        horimetroAtual: "",
-        status: "disponivel",
-        motor: "",
-        modelo: "",
-        fabricante: "",
-        potencia: "",
-        customerId: "",
-      });
-      setExtraFields([]);
-    }
+  // ----------------------------------------------------------------------------
+  // ABRIR MODAL: NOVO x EDITAR
+  // ----------------------------------------------------------------------------
+  const handleOpenNew = () => {
+    // Limpa estados para criar novo
+    setEditingGenerator(null);
+    setNewGenerator({
+      name: "",
+      serialNumber: "",
+      location: "",
+      purchaseDate: "",
+      lastMaintenanceDate: "",
+      deliveryDate: "",
+      horimetroAtual: "",
+      status: "disponivel",
+      motor: "",
+      modelo: "",
+      fabricante: "",
+      potencia: "",
+      customerId: "",
+    });
+    setExtraFields([]);
     setOpen(true);
+  };
+
+  const handleOpenEdit = async (generatorId) => {
+    try {
+      // Faz a busca no backend para garantir que teremos todos os dados
+      const resp = await api.post("/functions/getGeneratorById", { generatorId }, {
+        headers: {
+          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+        },
+      });
+      const gen = resp.data.result;
+
+      setEditingGenerator(gen);
+
+      // Ajustar o horímetro (caso venha de outro campo, acrescente aqui)
+      // A API no seu exemplo não retornou horimetroAtual explicitamente.
+      // Se você tiver esse campo, use: gen.horimetroAtual
+      // Senão, verifique se ele está em outro lugar ou acrescente no backend.
+      // Exemplo real, se for `gen.horimetroAtual`, ficaria assim:
+      const horimetro = gen.horimetroAtual ? String(gen.horimetroAtual) : "";
+
+      setNewGenerator({
+        name: gen.name || "",
+        serialNumber: gen.serialNumber || "",
+        location: gen.location || "",
+        purchaseDate: gen.purchaseDate ? gen.purchaseDate.slice(0, 10) : "",
+        lastMaintenanceDate: gen.lastMaintenanceDate
+          ? gen.lastMaintenanceDate.slice(0, 10)
+          : "",
+        deliveryDate: gen.deliveryDate ? gen.deliveryDate.slice(0, 10) : "",
+        horimetroAtual: horimetro,
+        status: gen.status || "disponivel",
+        motor: gen.motor || "",
+        modelo: gen.modelo || "",
+        fabricante: gen.fabricante || "",
+        potencia: gen.potencia || "",
+        // Se o objeto retornar `customer` => "objectId", use:
+        customerId: gen.customer ? gen.customer.objectId : "",
+      });
+
+      // Extra fields
+      setExtraFields(gen.extraFields || []);
+
+      // Abre o modal
+      setOpen(true);
+    } catch (error) {
+      console.error("Erro ao buscar gerador por ID:", error.message);
+    }
   };
 
   const handleClose = () => setOpen(false);
 
-  // 3) SALVAR (Create ou Update)
-  const handleSave = async (forceSchedule) => {
+  // ----------------------------------------------------------------------------
+  // SALVAR (CREATE OU UPDATE)
+  // ----------------------------------------------------------------------------
+  const handleSave = async () => {
     try {
-      // Exemplo: se for "Vendido", exige um cliente
+      // Validação simples
       if (newGenerator.status === "Vendido" && !newGenerator.customerId) {
         alert("É obrigatório informar o cliente ao vender o gerador.");
         return;
       }
 
-      // Montamos o payload que vai para a API
-      const payload = {
-        ...newGenerator,
-        extraFields,
-        // Se quisermos passar a flag "forceSchedule" para o back-end
-        forceSchedule, // <-- AQUI
-      };
+      const payload = { ...newGenerator, extraFields };
 
       if (editingGenerator) {
-        // Edição
-        await api.post(
-          "/functions/updateGenerator",
-          {
-            generatorId: editingGenerator.objectId,
-            ...payload,
+        await api.post("/functions/updateGenerator", {
+          generatorId: editingGenerator.objectId,
+          ...payload,
+        }, {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
           },
-          {
-            headers: {
-              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-            }
-          }
-        );
+        });
       } else {
-        // Criação
-        await api.post(
-          "/functions/createGenerator",
-          payload,
-          {
-            headers: {
-              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-            }
-          }
-        );
+        await api.post("/functions/createGenerator", payload, {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        });
       }
 
+      // Recarrega lista
       fetchGenerators();
       handleClose();
 
-      // Se usuário marcou para criar manutenções e existe deliveryDate
-      if (forceSchedule && newGenerator.deliveryDate) {
+      // Exibe a mensagem de agendamento de manutenção somente se for novo
+      if (!editingGenerator && newGenerator.deliveryDate) {
         const deliveryDate = new Date(newGenerator.deliveryDate + "T12:00:00");
         const threeMonths = new Date(deliveryDate);
         threeMonths.setMonth(threeMonths.getMonth() + 3);
@@ -272,7 +272,7 @@ function Generators() {
         const twelveMonths = new Date(deliveryDate);
         twelveMonths.setMonth(twelveMonths.getMonth() + 12);
 
-        const message = `Manutenções (3, 6 e 12 meses) agendadas para: 
+        const message = `Manutenções agendadas para: 
           ${threeMonths.toLocaleDateString("pt-BR")}, 
           ${sixMonths.toLocaleDateString("pt-BR")} e 
           ${twelveMonths.toLocaleDateString("pt-BR")}.`;
@@ -285,26 +285,26 @@ function Generators() {
     }
   };
 
-  // 4) SOFT DELETE
+  // ----------------------------------------------------------------------------
+  // EXCLUIR (SOFT DELETE)
+  // ----------------------------------------------------------------------------
   const handleDelete = async (generatorId) => {
     if (!window.confirm("Tem certeza que deseja excluir este gerador?")) return;
     try {
-      await api.post(
-        "/functions/softDeleteGenerator",
-        { generatorId },
-        {
-          headers: {
-            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          }
-        }
-      );
+      await api.post("/functions/softDeleteGenerator", { generatorId }, {
+        headers: {
+          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+        },
+      });
       fetchGenerators();
     } catch (error) {
       console.error("Erro ao excluir gerador:", error.message);
     }
   };
 
-  // 5) LÓGICA SUB-FORM EXTRA FIELDS
+  // ----------------------------------------------------------------------------
+  // SUB-FORM EXTRA FIELDS
+  // ----------------------------------------------------------------------------
   const addExtraField = () => {
     setExtraFields([...extraFields, { fieldName: "", fieldValue: "" }]);
   };
@@ -321,7 +321,9 @@ function Generators() {
     setExtraFields(updated);
   };
 
-  // 6) PEÇAS DE DESGASTE (modal separado)
+  // ----------------------------------------------------------------------------
+  // PEÇAS DE DESGASTE
+  // ----------------------------------------------------------------------------
   const [openPartsModal, setOpenPartsModal] = useState(false);
   const [partsGenerator, setPartsGenerator] = useState(null);
   const [generatorParts, setGeneratorParts] = useState([]);
@@ -419,7 +421,9 @@ function Generators() {
     }
   };
 
+  // ----------------------------------------------------------------------------
   // FILTRO DE BUSCA
+  // ----------------------------------------------------------------------------
   const filteredGenerators = generators.filter((g) => {
     const lowerSearch = searchTerm.toLowerCase();
     const generatorName = (g.name || "").toLowerCase();
@@ -430,13 +434,20 @@ function Generators() {
     );
   });
 
+  // ----------------------------------------------------------------------------
   // RENDER
+  // ----------------------------------------------------------------------------
   return (
     <Container maxWidth="lg">
       {/* TÍTULO E BOTÃO CRIAR */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mt={4} mb={2}>
         <Typography variant="h4">Geradores</Typography>
-        <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpen(null)}>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={handleOpenNew}
+        >
           Novo Gerador
         </Button>
       </Box>
@@ -472,13 +483,19 @@ function Generators() {
             {filteredGenerators.map((generator) => (
               <TableRow key={generator.objectId}>
                 <TableCell>
-                  <Link to={`/generator/${generator.objectId}`} style={{ textDecoration: "none", color: "inherit" }}>
+                  <Link
+                    to={`/generator/${generator.objectId}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
                     {generator.name}
                   </Link>
                 </TableCell>
                 <TableCell>{generator.customerName || "Sem Cliente"}</TableCell>
                 <TableCell>
-                  <Link to={`/generator/${generator.objectId}`} style={{ textDecoration: "none", color: "inherit" }}>
+                  <Link
+                    to={`/generator/${generator.objectId}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
                     {generator.serialNumber}
                   </Link>
                 </TableCell>
@@ -517,17 +534,26 @@ function Generators() {
                 </TableCell>
                 <TableCell align="center">
                   <Tooltip title="Editar">
-                    <IconButton color="primary" onClick={() => handleOpen(generator)}>
+                    <IconButton
+                      color="primary"
+                      onClick={() => handleOpenEdit(generator.objectId)}
+                    >
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Peças de Desgaste">
-                    <IconButton color="secondary" onClick={() => handleOpenParts(generator)}>
+                    <IconButton
+                      color="secondary"
+                      onClick={() => handleOpenParts(generator)}
+                    >
                       <ConstructionIcon />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Excluir">
-                    <IconButton color="error" onClick={() => handleDelete(generator.objectId)}>
+                    <IconButton
+                      color="error"
+                      onClick={() => handleDelete(generator.objectId)}
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </Tooltip>
@@ -536,18 +562,19 @@ function Generators() {
             ))}
             {filteredGenerators.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center">Nenhum gerador encontrado.</TableCell>
+                <TableCell colSpan={8} align="center">
+                  Nenhum gerador encontrado.
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
 
-      {/* Modal para gerador */}
+      {/* Modal de Gerador */}
       <GeneratorModal
         open={open}
         onClose={handleClose}
-        // Note que passamos a função que recebe forceSchedule como argumento
         onSave={handleSave}
         newGenerator={newGenerator}
         setNewGenerator={setNewGenerator}
@@ -559,8 +586,12 @@ function Generators() {
         editing={!!editingGenerator}
       />
 
-      {/* Snackbar */}
-      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
+      {/* Snackbar de Agendamento */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+      >
         <Alert
           onClose={() => setSnackbarOpen(false)}
           severity="info"
@@ -571,7 +602,7 @@ function Generators() {
         </Alert>
       </Snackbar>
 
-      {/* Modal para peças de desgaste */}
+      {/* Modal de Peças de Desgaste */}
       <Dialog open={openPartsModal} onClose={handleCloseParts} maxWidth="sm" fullWidth>
         <DialogTitle>Peças de Desgaste</DialogTitle>
         <DialogContent>
@@ -581,16 +612,32 @@ function Generators() {
             </Typography>
           )}
           {generatorParts.map((part) => (
-            <Box key={part.objectId} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+            <Box
+              key={part.objectId}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 1
+              }}
+            >
               <Typography>
-                <strong>{part.partName}</strong> : Intervalo: {part.intervalHours}h | Horas Usadas: {part.currentHours || 0}
+                <strong>{part.partName}</strong> : Intervalo: {part.intervalHours}h | Horas Usadas:{" "}
+                {part.currentHours || 0}
               </Typography>
               <IconButton color="error" onClick={() => handleDeleteGeneratorPart(part.objectId)}>
                 <DeleteIcon />
               </IconButton>
             </Box>
           ))}
-          <Box sx={{ mt: 2, p: 2, border: "1px solid #ddd", borderRadius: "4px" }}>
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              border: "1px solid #ddd",
+              borderRadius: "4px"
+            }}
+          >
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Adicionar Nova Peça
             </Typography>
@@ -601,7 +648,12 @@ function Generators() {
               margin="dense"
               fullWidth
               value={newPartData.inventoryItemId}
-              onChange={(e) => setNewPartData({ ...newPartData, inventoryItemId: e.target.value })}
+              onChange={(e) =>
+                setNewPartData({
+                  ...newPartData,
+                  inventoryItemId: e.target.value
+                })
+              }
             >
               <MenuItem value="">
                 <em>Nenhum selecionado</em>
@@ -618,7 +670,12 @@ function Generators() {
               margin="dense"
               type="number"
               value={newPartData.intervalHours}
-              onChange={(e) => setNewPartData({ ...newPartData, intervalHours: e.target.value })}
+              onChange={(e) =>
+                setNewPartData({
+                  ...newPartData,
+                  intervalHours: e.target.value
+                })
+              }
             />
             <Box sx={{ textAlign: "right", mt: 2 }}>
               <Button variant="contained" onClick={handleAddGeneratorPart}>
