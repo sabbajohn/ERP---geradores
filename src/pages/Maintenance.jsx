@@ -68,6 +68,7 @@ function Maintenance() {
             objectId: m.objectId,
             generatorId: m.generatorId?.objectId || "",
             generatorName: m.generatorId?.name || "N/A",
+            clientName: m.generatorId?.customerId?.name || "N/A", // Novo campo para nome do cliente
             technicianId: m.technicianId?.objectId || "",
             technicianName: m.technicianId?.name || "N/A",
             maintenanceDate: justDate,
@@ -300,6 +301,7 @@ function Maintenance() {
           <TableHead>
             <TableRow>
               <TableCell><strong>Gerador</strong></TableCell>
+              <TableCell><strong>Cliente</strong></TableCell>
               <TableCell><strong>Técnico</strong></TableCell>
               <TableCell><strong>Data</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
@@ -311,6 +313,7 @@ function Maintenance() {
             {maintenances.map((m) => (
               <TableRow key={m.objectId}>
                 <TableCell>{m.generatorName}</TableCell>
+                <TableCell>{m.clientName}</TableCell>
                 <TableCell>{m.technicianName}</TableCell>
                 <TableCell>
                   <Tooltip
@@ -363,7 +366,7 @@ function Maintenance() {
             value={formData.generatorId}
             onChange={(e) => setFormData({ ...formData, generatorId: e.target.value })}
             margin="dense"
-            InputLabelProps={{ shrink: true }}  // Força o encolhimento do label
+            InputLabelProps={{ shrink: true }}
             SelectProps={{ native: true }}
           >
             <option value="">Selecione um gerador</option>
@@ -381,7 +384,7 @@ function Maintenance() {
             value={formData.technicianId}
             onChange={(e) => setFormData({ ...formData, technicianId: e.target.value })}
             margin="dense"
-            InputLabelProps={{ shrink: true }}  // Força o encolhimento do label
+            InputLabelProps={{ shrink: true }}
             SelectProps={{ native: true }}
           >
             <option value="">Selecione um técnico</option>
@@ -391,7 +394,6 @@ function Maintenance() {
               </option>
             ))}
           </TextField>
-
 
           <TextField
             fullWidth
@@ -448,7 +450,6 @@ function Maintenance() {
           </Button>
         </DialogActions>
       </Dialog>
-
     </Container>
   );
 }
