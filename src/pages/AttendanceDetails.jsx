@@ -143,6 +143,23 @@ function AttendanceDetails() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [maintenanceId]);
 
+    // Preenche o campo "horimetro" com o valor atual do gerador, se disponível
+    useEffect(() => {
+        if (
+            maintenanceInfo &&
+            maintenanceInfo.generatorId &&
+            maintenanceInfo.generatorId.horimetroAtual
+        ) {
+            // Se ainda não houver valor definido no checklistInputs, seta o horímetro atual
+            if (!checklistInputs.horimetro) {
+                setChecklistInputs((prev) => ({
+                    ...prev,
+                    horimetro: maintenanceInfo.generatorId.horimetroAtual,
+                }));
+            }
+        }
+    }, [maintenanceInfo, checklistInputs.horimetro]);
+
     const fetchMaintenanceDetails = async () => {
         try {
             setLoading(true);
@@ -586,9 +603,7 @@ function AttendanceDetails() {
                 </Typography>
                 <List sx={{ maxHeight: 150, overflowY: "auto" }}>
                     {generatorReports.map((rep, idx) => {
-                        const dateStr = rep.createdAt
-                            ? rep.createdAt.toLocaleString("pt-BR")
-                            : "Data não encontrada";
+                        const dateStr = rep.createdAt ? rep.createdAt.toLocaleString("pt-BR") : "Data não encontrada";
                         const partsUsedStr = (rep.partsUsed || [])
                             .map((p) => `${p.itemName}(x${p.quantity})`)
                             .join(", ");
@@ -642,22 +657,42 @@ function AttendanceDetails() {
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Checklist - Campos de Entrada
                 </Typography>
-                {CHECKLIST_ITEMS_INPUT.map((inputItem) => (
-                    <Box key={inputItem.key} mb={2}>
-                        <Typography sx={{ fontWeight: "bold", mb: 0.5 }}>
-                            {inputItem.label}
-                            {inputItem.key === "horimetro" && " *"}
-                        </Typography>
-                        <TextField
-                            fullWidth
-                            type={inputItem.key === "horimetro" ? "number" : "text"}
-                            placeholder="Digite o valor"
-                            value={checklistInputs[inputItem.key] || ""}
-                            onChange={(e) => handleChecklistInputChange(inputItem.key, e.target.value)}
-                            required={inputItem.key === "horimetro"}
-                        />
-                    </Box>
-                ))}
+                {CHECKLIST_ITEMS_INPUT.map((inputItem) => {
+                    const isHorimetro = inputItem.key === "horimetro";
+                    return (
+                        <Box key={inputItem.key} mb={2}>
+                            <Typography sx={{ fontWeight: "bold", mb: 0.5 }}>
+                                {inputItem.label}
+                                {isHorimetro && " *"}
+                            </Typography>
+                            <TextField
+                                fullWidth
+                                type={isHorimetro ? "number" : "text"}
+                                placeholder="Digite o valor"
+                                value={checklistInputs[inputItem.key] || ""}
+                                onChange={(e) => {
+                                    if (isHorimetro) {
+                                        const newValue = parseFloat(e.target.value);
+                                        const currentHorimetro = parseFloat(maintenanceInfo.generatorId.horimetroAtual);
+                                        if (newValue < currentHorimetro) {
+                                            alert(
+                                                "O horímetro não pode ser menor que o valor atual (" +
+                                                currentHorimetro +
+                                                ")."
+                                            );
+                                            return;
+                                        }
+                                    }
+                                    handleChecklistInputChange(inputItem.key, e.target.value);
+                                }}
+                                required={isHorimetro}
+                                {...(isHorimetro && {
+                                    inputProps: { min: maintenanceInfo.generatorId.horimetroAtual },
+                                })}
+                            />
+                        </Box>
+                    );
+                })}
             </Paper>
 
             {/* Peças Trocadas / Solicitadas */}
@@ -785,7 +820,7 @@ function AttendanceDetails() {
                 )}
             </Paper>
 
-            {/* Botão Único de Finalizar Atendimento (finaliza e salva o relatório) */}
+            {/* Botão Único de Finalizar Atendimento */}
             <Box textAlign="center" mb={3}>
                 <Button
                     variant="contained"

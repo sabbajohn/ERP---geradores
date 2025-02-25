@@ -311,7 +311,9 @@ const ServiceReport = ({ reportData = {} }) => {
                                     <View style={styles.signatureBox}>
                                         <Image style={styles.signature} src={report.customerSignature} />
                                     </View>
-                                    <Text style={styles.signatureName}>{report.customer?.name || "N/A"}</Text>
+                                    <Text style={styles.signatureName}>
+                                        {report.customer?.name || "N/A"}
+                                    </Text>
                                 </View>
                             )}
                         </View>
