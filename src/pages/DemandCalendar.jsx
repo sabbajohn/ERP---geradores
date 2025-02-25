@@ -57,6 +57,7 @@ function CalendarioManutencoes() {
     const [geradores, setGeradores] = useState([]);
     const [tecnicos, setTecnicos] = useState([]);
     const [modalAberto, setModalAberto] = useState(false);
+
     const [novoEvento, setNovoEvento] = useState({
         generatorId: "",
         technicianId: "",
@@ -64,6 +65,7 @@ function CalendarioManutencoes() {
         startTime: "",
         endTime: "",
         status: "Agendada",
+        description: "", // <-- Novo campo
     });
 
     useEffect(() => {
@@ -80,7 +82,7 @@ function CalendarioManutencoes() {
                 {
                     headers: {
                         "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-                    },
+                    }
                 }
             );
 
@@ -88,10 +90,9 @@ function CalendarioManutencoes() {
                 const formatados = response.data.result.map((m) => {
                     const isoString = m.maintenanceDate?.iso || "";
                     const startTime = m.startTime || "12:00"; // Horário padrão, se não existir
-                    const endTime = m.endTime || "13:00"; // Horário padrão, se não existir
+                    const endTime = m.endTime || "13:00";   // Horário padrão, se não existir
 
-                    // Cria a data base a partir de ISO em UTC, sem converter para local,
-                    // para manter o dia exatamente como armazenado
+                    // Cria a data base a partir de ISO em UTC, mantendo o mesmo dia
                     const dataBase = moment.utc(isoString).startOf("day");
 
                     const dataInicio = dataBase.clone().set({
@@ -117,6 +118,7 @@ function CalendarioManutencoes() {
                         technicianId: m.technicianId?.objectId || "",
                         technicianName: m.technicianId?.name || "Sem Técnico",
                         maintenanceDate: moment.utc(isoString).format("YYYY-MM-DD"),
+                        description: m.description || "", // <-- Se quiser exibir ou usar
                     };
                 });
                 setEventos(formatados);
@@ -126,7 +128,6 @@ function CalendarioManutencoes() {
         }
     };
 
-
     const buscarGeradores = async () => {
         try {
             const response = await api.post(
@@ -135,7 +136,7 @@ function CalendarioManutencoes() {
                 {
                     headers: {
                         "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-                    },
+                    }
                 }
             );
             if (response.data.result) {
@@ -154,7 +155,7 @@ function CalendarioManutencoes() {
                 {
                     headers: {
                         "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-                    },
+                    }
                 }
             );
             if (response.data.result) {
@@ -175,6 +176,7 @@ function CalendarioManutencoes() {
             startTime: "",
             endTime: "",
             status: "Agendada",
+            description: "",
         });
         setModalAberto(true);
     };
@@ -199,7 +201,7 @@ function CalendarioManutencoes() {
             return;
         }
 
-        // Aqui filtramos os eventos que já estão agendados para o mesmo técnico e na mesma data (usando o horário local)
+        // Filtra eventos do mesmo dia/técnico
         const eventosMesmoDia = eventos.filter(
             (ev) =>
                 ev.technicianId === novoEvento.technicianId &&
@@ -237,6 +239,7 @@ function CalendarioManutencoes() {
                 startTime: novoEvento.startTime,
                 endTime: novoEvento.endTime,
                 status: novoEvento.status,
+                description: novoEvento.description, // <-- Enviando a descrição
             };
 
             await api.post("/functions/createMaintenance", payload, {
@@ -245,7 +248,7 @@ function CalendarioManutencoes() {
                 },
             });
 
-            // Atualiza a lista de manutenções para refletir o novo agendamento
+            // Atualiza a lista de manutenções
             await buscarManutencoes();
             setModalAberto(false);
         } catch (error) {
@@ -258,7 +261,11 @@ function CalendarioManutencoes() {
     };
 
     const textoTooltip = (evento) => {
-        return `Técnico: ${evento.technicianName}\nHorário: ${evento.startTime || "?"} - ${evento.endTime || "?"}`;
+        return (
+            `Técnico: ${evento.technicianName}\n` +
+            `Horário: ${evento.startTime || "?"} - ${evento.endTime || "?"}\n` +
+            (evento.description ? `Descrição: ${evento.description}` : "")
+        );
     };
 
     const coresPorStatus = {
@@ -271,6 +278,7 @@ function CalendarioManutencoes() {
 
     const estiloEvento = (evento) => {
         const paleta = coresPorStatus[evento.status] || corPadrao;
+        // Tentativa de pegar um índice estável, mas simples
         const index = parseInt(evento.id, 36) % paleta.length;
         return {
             style: {
@@ -375,6 +383,19 @@ function CalendarioManutencoes() {
                             value={novoEvento.endTime}
                             onChange={(e) =>
                                 setNovoEvento({ ...novoEvento, endTime: e.target.value })
+                            }
+                        />
+
+                        {/* CAMPO DE DESCRIÇÃO */}
+                        <TextField
+                            fullWidth
+                            margin="dense"
+                            label="Descrição"
+                            multiline
+                            rows={3}
+                            value={novoEvento.description}
+                            onChange={(e) =>
+                                setNovoEvento({ ...novoEvento, description: e.target.value })
                             }
                         />
 

@@ -39,9 +39,10 @@ function Maintenance() {
     startTime: "",
     endTime: "",
     status: "Agendada",
+    description: "", // <-- Campo para a descrição
   });
 
-  // Converte "HH:MM" em minutos
+  // Converte "HH:MM" em minutos (para comparação de horários)
   const timeStringToMinutes = (timeStr) => {
     const [h, m] = timeStr.split(":").map(Number);
     return h * 60 + m;
@@ -68,13 +69,14 @@ function Maintenance() {
             objectId: m.objectId,
             generatorId: m.generatorId?.objectId || "",
             generatorName: m.generatorId?.name || "N/A",
-            clientName: m.generatorId?.customerId?.name || "N/A", // Novo campo para nome do cliente
+            clientName: m.generatorId?.customerId?.name || "N/A",
             technicianId: m.technicianId?.objectId || "",
             technicianName: m.technicianId?.name || "N/A",
             maintenanceDate: justDate,
             startTime: m.startTime || "",
             endTime: m.endTime || "",
             status: m.status,
+            description: m.description || "", // <-- Capturando a descrição vinda do back
           };
         });
         setMaintenances(formatted);
@@ -136,7 +138,7 @@ function Maintenance() {
   // Abre modal (criação ou edição)
   const handleOpen = (maintenance = null) => {
     if (maintenance) {
-      console.log("Editando manutenção:", maintenance); // <-- LOG do objeto a ser editado
+      console.log("Editando manutenção:", maintenance);
 
       setEditingMaintenance(maintenance);
       setFormData({
@@ -146,6 +148,7 @@ function Maintenance() {
         startTime: maintenance.startTime || "",
         endTime: maintenance.endTime || "",
         status: maintenance.status || "Agendada",
+        description: maintenance.description || "",
       });
     } else {
       setEditingMaintenance(null);
@@ -156,6 +159,7 @@ function Maintenance() {
         startTime: "",
         endTime: "",
         status: "Agendada",
+        description: "",
       });
     }
     setOpen(true);
@@ -166,7 +170,7 @@ function Maintenance() {
     setOpen(false);
   };
 
-  // Cria/Atualiza Manutenção. Se criar nova, gera OS
+  // Cria/Atualiza Manutenção
   const handleSave = async () => {
     try {
       if (!formData.startTime || !formData.endTime) {
@@ -187,7 +191,6 @@ function Maintenance() {
           m.maintenanceDate === formData.maintenanceDate &&
           m.objectId !== editingMaintenance?.objectId // descarta a que está sendo editada
       );
-
       for (const m of sameDay) {
         if (m.status === "Concluída" || m.status === "Cancelada") continue;
         const existStart = timeStringToMinutes(m.startTime);
@@ -217,17 +220,18 @@ function Maintenance() {
         startTime: formData.startTime,
         endTime: formData.endTime,
         status: formData.status,
+        description: formData.description, // <-- Incluindo a descrição no payload
       };
 
       console.log("Dados da manutenção para salvar:", {
         editingMaintenance,
         ...maintenancePayload,
-      }); // <-- LOG do que está sendo enviado no save
+      });
 
       let newMaintenanceId = null;
 
-      // Se já estiver editando uma manutenção existente, chama update
       if (editingMaintenance) {
+        // Atualiza manutenção existente
         await api.post(
           "/functions/updateMaintenance",
           {
@@ -241,7 +245,7 @@ function Maintenance() {
           }
         );
       } else {
-        // Caso contrário, cria manutenção nova
+        // Cria uma nova manutenção
         const respCreate = await api.post(
           "/functions/createMaintenance",
           maintenancePayload,
@@ -252,38 +256,38 @@ function Maintenance() {
           }
         );
         newMaintenanceId = respCreate.data?.result?.objectId;
-      }
 
-      // Se for nova manutenção e criou com sucesso, gera uma Ordem de Serviço (OS)
-      if (!editingMaintenance && newMaintenanceId) {
-        await api.post(
-          "/functions/createOrder",
-          {
-            maintenanceId: {
-              __type: "Pointer",
-              className: "Maintenances",
-              objectId: newMaintenanceId,
+        // Exemplo de criar automaticamente uma OS ao criar a manutenção
+        if (newMaintenanceId) {
+          await api.post(
+            "/functions/createOrder",
+            {
+              maintenanceId: {
+                __type: "Pointer",
+                className: "Maintenances",
+                objectId: newMaintenanceId,
+              },
+              generatorId: {
+                __type: "Pointer",
+                className: "Generators",
+                objectId: formData.generatorId,
+              },
+              technicianId: {
+                __type: "Pointer",
+                className: "Technicians",
+                objectId: formData.technicianId,
+              },
+              status: "pending",
+              description: "OS gerada automaticamente",
+              date: new Date(formData.maintenanceDate).toISOString(),
             },
-            generatorId: {
-              __type: "Pointer",
-              className: "Generators",
-              objectId: formData.generatorId,
-            },
-            technicianId: {
-              __type: "Pointer",
-              className: "Technicians",
-              objectId: formData.technicianId,
-            },
-            status: "pending",
-            description: "OS gerada automaticamente",
-            date: new Date(formData.maintenanceDate).toISOString(),
-          },
-          {
-            headers: {
-              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            {
+              headers: {
+                "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+              }
             }
-          }
-        );
+          );
+        }
       }
 
       // Atualiza a tabela
@@ -296,7 +300,7 @@ function Maintenance() {
 
   // Exclui manutenção (soft delete)
   const handleDelete = async (maintenanceId) => {
-    console.log("Excluindo manutenção ID:", maintenanceId); // <-- LOG do ID que está sendo excluído
+    console.log("Excluindo manutenção ID:", maintenanceId);
     try {
       await api.post(
         "/functions/softDeleteMaintenance",
@@ -331,24 +335,15 @@ function Maintenance() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>
-                <strong>Gerador</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Cliente</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Técnico</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Data</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Status</strong>
-              </TableCell>
-              <TableCell align="center">
-                <strong>Ações</strong>
-              </TableCell>
+              <TableCell><strong>Gerador</strong></TableCell>
+              <TableCell><strong>Cliente</strong></TableCell>
+              <TableCell><strong>Técnico</strong></TableCell>
+              <TableCell><strong>Data</strong></TableCell>
+              <TableCell><strong>Status</strong></TableCell>
+              {/* Nova coluna para exibir a descrição, se desejar */}
+              <TableCell><strong>Descrição</strong></TableCell>
+
+              <TableCell align="center"><strong>Ações</strong></TableCell>
             </TableRow>
           </TableHead>
 
@@ -379,10 +374,15 @@ function Maintenance() {
                     color={
                       m.status === "Concluída" || m.status === "completed"
                         ? "success"
-                        : "warning"
+                        : m.status === "Cancelada"
+                          ? "error"
+                          : "warning"
                     }
                   />
                 </TableCell>
+                {/* Exibe a descrição na tabela */}
+                <TableCell>{m.description}</TableCell>
+
                 <TableCell align="center">
                   <IconButton onClick={() => handleOpen(m)}>
                     <EditIcon />
@@ -483,6 +483,18 @@ function Maintenance() {
             <option value="Concluída">Concluída</option>
             <option value="Cancelada">Cancelada</option>
           </TextField>
+
+          {/* Novo campo de descrição, multiline para facilitar */}
+          <TextField
+            fullWidth
+            label="Descrição"
+            placeholder="Descreva detalhes desta manutenção..."
+            multiline
+            rows={3}
+            margin="dense"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
         </DialogContent>
 
         <DialogActions>

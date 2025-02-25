@@ -24,6 +24,7 @@ import {
   FaSignOutAlt,
   FaHandshake,
   FaWhatsapp,
+  FaChartLine, // <--- Adicionado para Relatórios Estatísticos
 } from "react-icons/fa";
 
 function Sidebar({ onClose }) {
@@ -38,8 +39,7 @@ function Sidebar({ onClose }) {
     navigate("/login");
   };
 
-  // Estilo padrão para os botões da lista, mantendo o texto em branco e 
-  // aplicando um fundo diferenciado quando o item estiver ativo.
+  // Estilo padrão para os botões da lista
   const listItemButtonStyle = {
     color: "#fff",
     "&.active": {
@@ -79,7 +79,6 @@ function Sidebar({ onClose }) {
             <ListItemButton
               component={NavLink}
               to="/dashboard"
-              end
               sx={listItemButtonStyle}
             >
               <ListItemIcon sx={{ color: "inherit" }}>
@@ -128,6 +127,7 @@ function Sidebar({ onClose }) {
             </ListItemButton>
           </ListItem>
 
+          {/* Rota para Calendário (ainda que não exista mais sidebar específica) */}
           <ListItem disablePadding>
             <ListItemButton
               component={NavLink}
@@ -206,6 +206,20 @@ function Sidebar({ onClose }) {
             </ListItemButton>
           </ListItem>
 
+          {/* Exemplo de link para o Dashboard de relatórios estatísticos */}
+          <ListItem disablePadding>
+            <ListItemButton
+              component={NavLink}
+              to="/reports-dashboard"
+              sx={listItemButtonStyle}
+            >
+              <ListItemIcon sx={{ color: "inherit" }}>
+                <FaChartLine />
+              </ListItemIcon>
+              <ListItemText primary="Relatórios Estatísticos" />
+            </ListItemButton>
+          </ListItem>
+
           {/* Botão de Logout */}
           <ListItem disablePadding>
             <ListItemButton onClick={handleLogout} sx={listItemButtonStyle}>
@@ -219,7 +233,13 @@ function Sidebar({ onClose }) {
       </Box>
 
       {/* Seção de Suporte fixa ao final */}
-      <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "rgba(255,255,255,0.2)" }}>
+      <Box
+        sx={{
+          p: 2,
+          borderTop: "1px solid",
+          borderColor: "rgba(255,255,255,0.2)",
+        }}
+      >
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           Suporte:
         </Typography>

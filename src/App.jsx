@@ -3,10 +3,10 @@ import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { IconButton, Drawer, useMediaQuery } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 
-// Importa as duas versões da Sidebar:
+// Removido: import CalendarSidebar
 import Sidebar from "./components/Sidebar";
-import CalendarSidebar from "./components/SidebarCalendar";
 
+// Importa todas as suas páginas
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Generators from "./pages/Generators";
@@ -27,7 +27,10 @@ import ChecklistsList from "./pages/ChecklistsList";
 import GeneratorDetails from "./pages/GeneratorDetails";
 import Suppliers from "./pages/Suppliers";
 
-// Rota protegida (se não houver token, redireciona para /login)
+// Importa o novo Dashboard de relatórios agregados
+import ReportsDashboard from "./pages/ReportsDashboard";
+
+// Rota protegida
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("sessionToken");
   return token ? children : <Navigate to="/login" replace />;
@@ -36,18 +39,16 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   const location = useLocation();
 
-  // Verifica o role do usuário (supondo que esteja salvo no localStorage)
   const role = localStorage.getItem("role");
   const isAdmin = role === "admin";
 
-  // Determina se estamos em um dispositivo mobile (largura <= 768px)
+  // Detecta mobile
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Controla se o Drawer (menu lateral mobile) está aberto
   const [drawerOpen, setDrawerOpen] = useState(false);
   const handleToggleDrawer = () => setDrawerOpen(!drawerOpen);
 
-  // Defina as rotas onde a Sidebar deve aparecer
+  // Rotas onde a Sidebar deve aparecer
   const showSidebarPaths = [
     "/dashboard",
     "/customers",
@@ -62,23 +63,22 @@ function AppContent() {
     "/ChecklistLocacao",
     "/checklists",
     "/tecnico",
-    "/agenda"
+    "/agenda",
+    "/reports-dashboard",
   ];
+
   const showSidebar = showSidebarPaths.some((path) =>
     location.pathname.startsWith(path)
   );
 
-  // Se estivermos na tela de calendário, usaremos a Sidebar específica
-  const isCalendarScreen = location.pathname.startsWith("/calendar");
-
   return (
     <div className={`app-container ${showSidebar ? "" : "no-sidebar"}`}>
-      {/* Renderiza a Sidebar fixa para telas grandes apenas se o usuário for admin */}
+      {/* Renderiza a Sidebar fixa para telas grandes, apenas se for admin */}
       {showSidebar && isAdmin && !isMobile && (
-        isCalendarScreen ? <CalendarSidebar /> : <Sidebar />
+        <Sidebar />
       )}
 
-      {/* Em mobile, exibe o botão hamburger (caso o Drawer esteja fechado) apenas para admin */}
+      {/* Em mobile, exibe um botão hamburger se for admin e a sidebar estiver fechada */}
       {showSidebar && isAdmin && isMobile && !drawerOpen && (
         <IconButton
           onClick={handleToggleDrawer}
@@ -96,7 +96,7 @@ function AppContent() {
         </IconButton>
       )}
 
-      {/* Drawer para mobile apenas se o usuário for admin */}
+      {/* Drawer para mobile, apenas se for admin */}
       {showSidebar && isAdmin && (
         <Drawer
           open={drawerOpen}
@@ -109,11 +109,7 @@ function AppContent() {
             },
           }}
         >
-          {isCalendarScreen ? (
-            <CalendarSidebar onClose={handleToggleDrawer} />
-          ) : (
-            <Sidebar onClose={handleToggleDrawer} />
-          )}
+          <Sidebar onClose={handleToggleDrawer} />
         </Drawer>
       )}
 
@@ -266,6 +262,16 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Suppliers />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Nova rota para o Dashboard de Relatórios (estatísticas) */}
+          <Route
+            path="/reports-dashboard"
+            element={
+              <ProtectedRoute>
+                <ReportsDashboard />
               </ProtectedRoute>
             }
           />
