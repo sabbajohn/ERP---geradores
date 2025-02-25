@@ -16,7 +16,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import { Link } from "react-router-dom"; // Importa o Link para navegação
+import { Link } from "react-router-dom";
 import api from "../services/api";
 
 function ChecklistsList() {
@@ -108,8 +108,10 @@ function ChecklistsList() {
         doc.text("Relatório de Checklists (Resumido)", 14, 10);
 
         const tableData = checklists.map((ch) => [
-            ch.gerador ? (ch.gerador.serialNumber || ch.gerador.name || "Sem Gerador") : "Sem Gerador",
-            ch.cliente ? (ch.cliente.name || "Sem Cliente") : "Sem Cliente",
+            ch.gerador
+                ? ch.gerador.serialNumber || ch.gerador.name || "Sem Gerador"
+                : "Sem Gerador",
+            ch.cliente ? ch.cliente.name || "Sem Cliente" : "Sem Cliente",
             ch.horimetroSaida || "",
             ch.horimetroDevolucao || "",
             ch.dataSaida ? new Date(ch.dataSaida.iso).toLocaleString() : "",
@@ -187,18 +189,6 @@ function ChecklistsList() {
                 cursorY = doc.lastAutoTable.finalY + 10;
             }
 
-            if (checklist.signatureClienteSaida) {
-                doc.text("Assinatura Cliente (Saída):", 14, cursorY);
-                cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureClienteSaida.url, 14, cursorY, 50, 20);
-                cursorY += 30;
-            }
-            if (checklist.signatureLojaSaida) {
-                doc.text("Assinatura Loja (Saída):", 14, cursorY);
-                cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureLojaSaida.url, 14, cursorY, 50, 20);
-                cursorY += 30;
-            }
             if (checklist._photos?.length > 0) {
                 const fotosSaida = checklist._photos.filter((p) => p.flow === "saida");
                 if (fotosSaida.length > 0) {
@@ -216,6 +206,19 @@ function ChecklistsList() {
                         }
                     }
                 }
+            }
+
+            if (checklist.signatureClienteSaida) {
+                doc.text("Assinatura Cliente (Saída):", 14, cursorY);
+                cursorY += 5;
+                await addImageFromURL(doc, checklist.signatureClienteSaida.url, 14, cursorY, 50, 20);
+                cursorY += 30;
+            }
+            if (checklist.signatureLojaSaida) {
+                doc.text("Assinatura Loja (Saída):", 14, cursorY);
+                cursorY += 5;
+                await addImageFromURL(doc, checklist.signatureLojaSaida.url, 14, cursorY, 50, 20);
+                cursorY += 30;
             }
 
             // 7.3) Seção DEVOLUÇÃO
@@ -239,18 +242,6 @@ function ChecklistsList() {
                 cursorY = doc.lastAutoTable.finalY + 10;
             }
 
-            if (checklist.signatureClienteDevolucao) {
-                doc.text("Assinatura Cliente (Devolução):", 14, cursorY);
-                cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureClienteDevolucao.url, 14, cursorY, 50, 20);
-                cursorY += 30;
-            }
-            if (checklist.signatureLojaDevolucao) {
-                doc.text("Assinatura Loja (Devolução):", 14, cursorY);
-                cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureLojaDevolucao.url, 14, cursorY, 50, 20);
-                cursorY += 30;
-            }
             if (checklist._photos?.length > 0) {
                 const fotosDevolucao = checklist._photos.filter((p) => p.flow === "devolucao");
                 if (fotosDevolucao.length > 0) {
@@ -268,6 +259,19 @@ function ChecklistsList() {
                         }
                     }
                 }
+            }
+
+            if (checklist.signatureClienteDevolucao) {
+                doc.text("Assinatura Cliente (Devolução):", 14, cursorY);
+                cursorY += 5;
+                await addImageFromURL(doc, checklist.signatureClienteDevolucao.url, 14, cursorY, 50, 20);
+                cursorY += 30;
+            }
+            if (checklist.signatureLojaDevolucao) {
+                doc.text("Assinatura Loja (Devolução):", 14, cursorY);
+                cursorY += 5;
+                await addImageFromURL(doc, checklist.signatureLojaDevolucao.url, 14, cursorY, 50, 20);
+                cursorY += 30;
             }
 
             doc.save(`checklist_detalhado.pdf`);
@@ -376,13 +380,19 @@ function ChecklistsList() {
                                             : "Sem Gerador"}
                                     </TableCell>
                                     <TableCell>
-                                        {ch.cliente ? ch.cliente.name || "Cliente sem nome" : "Sem Cliente"}
+                                        {ch.cliente
+                                            ? ch.cliente.name || "Cliente sem nome"
+                                            : "Sem Cliente"}
                                     </TableCell>
                                     <TableCell>
-                                        {ch.dataSaida ? new Date(ch.dataSaida.iso).toLocaleString() : ""}
+                                        {ch.dataSaida
+                                            ? new Date(ch.dataSaida.iso).toLocaleString()
+                                            : ""}
                                     </TableCell>
                                     <TableCell>
-                                        {ch.dataDevolucao ? new Date(ch.dataDevolucao.iso).toLocaleString() : ""}
+                                        {ch.dataDevolucao
+                                            ? new Date(ch.dataDevolucao.iso).toLocaleString()
+                                            : ""}
                                     </TableCell>
                                     <TableCell>
                                         <Button
@@ -397,7 +407,11 @@ function ChecklistsList() {
                                             onClick={() => toggleExpand(ch.objectId)}
                                             sx={{ fontSize: "1rem", mr: 1 }}
                                         >
-                                            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                            {isExpanded ? (
+                                                <ExpandLessIcon />
+                                            ) : (
+                                                <ExpandMoreIcon />
+                                            )}
                                         </Button>
                                         <Button
                                             variant="outlined"
@@ -416,21 +430,33 @@ function ChecklistsList() {
                                         <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                                             <Box sx={{ m: 2 }}>
                                                 {/* Horímetros */}
-                                                <Typography variant="h6" sx={{ fontSize: "1.3rem", mb: 1 }}>
+                                                <Typography
+                                                    variant="h6"
+                                                    sx={{ fontSize: "1.3rem", mb: 1 }}
+                                                >
                                                     Horímetro Saída: {ch.horimetroSaida || "--"}
                                                 </Typography>
-                                                <Typography variant="h6" sx={{ fontSize: "1.3rem", mb: 2 }}>
+                                                <Typography
+                                                    variant="h6"
+                                                    sx={{ fontSize: "1.3rem", mb: 2 }}
+                                                >
                                                     Horímetro Devolução: {ch.horimetroDevolucao || "--"}
                                                 </Typography>
 
                                                 {/* Seção: Saída */}
                                                 <Paper sx={{ p: 2, mb: 2, backgroundColor: "#e3f2fd" }}>
-                                                    <Typography variant="h6" sx={{ fontSize: "1.4rem", mb: 1 }}>
+                                                    <Typography
+                                                        variant="h6"
+                                                        sx={{ fontSize: "1.4rem", mb: 1 }}
+                                                    >
                                                         Seção: Saída
                                                     </Typography>
                                                     {ch.checklistSaida?.length > 0 && (
                                                         <>
-                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem", mb: 1 }}>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                sx={{ fontSize: "1.3rem", mb: 1 }}
+                                                            >
                                                                 Checklist de Saída:
                                                             </Typography>
                                                             {ch.checklistSaida.map((item, idx) => (
@@ -467,34 +493,14 @@ function ChecklistsList() {
                                                             ))}
                                                         </>
                                                     )}
-                                                    {ch.signatureClienteSaida && (
-                                                        <Box sx={{ mt: 1 }}>
-                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
-                                                                Assinatura Cliente (Saída):
-                                                            </Typography>
-                                                            <img
-                                                                src={ch.signatureClienteSaida.url}
-                                                                alt="Assinatura Cliente Saída"
-                                                                style={{ width: 180, border: "1px solid #ccc" }}
-                                                            />
-                                                        </Box>
-                                                    )}
-                                                    {ch.signatureLojaSaida && (
-                                                        <Box sx={{ mt: 1 }}>
-                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
-                                                                Assinatura Loja (Saída):
-                                                            </Typography>
-                                                            <img
-                                                                src={ch.signatureLojaSaida.url}
-                                                                alt="Assinatura Loja Saída"
-                                                                style={{ width: 180, border: "1px solid #ccc" }}
-                                                            />
-                                                        </Box>
-                                                    )}
                                                     {ch._photos &&
-                                                        ch._photos.filter((p) => p.flow === "saida").length > 0 && (
+                                                        ch._photos.filter((p) => p.flow === "saida").length >
+                                                        0 && (
                                                             <Box sx={{ mt: 1 }}>
-                                                                <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
+                                                                <Typography
+                                                                    variant="subtitle1"
+                                                                    sx={{ fontSize: "1.3rem" }}
+                                                                >
                                                                     Fotos da Saída:
                                                                 </Typography>
                                                                 <Box display="flex" flexWrap="wrap" gap={2} mt={1}>
@@ -519,16 +525,52 @@ function ChecklistsList() {
                                                                 </Box>
                                                             </Box>
                                                         )}
+                                                    {ch.signatureClienteSaida && (
+                                                        <Box sx={{ mt: 1 }}>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                sx={{ fontSize: "1.3rem" }}
+                                                            >
+                                                                Assinatura Cliente (Saída):
+                                                            </Typography>
+                                                            <img
+                                                                src={ch.signatureClienteSaida.url}
+                                                                alt="Assinatura Cliente Saída"
+                                                                style={{ width: 180, border: "1px solid #ccc" }}
+                                                            />
+                                                        </Box>
+                                                    )}
+                                                    {ch.signatureLojaSaida && (
+                                                        <Box sx={{ mt: 1 }}>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                sx={{ fontSize: "1.3rem" }}
+                                                            >
+                                                                Assinatura Loja (Saída):
+                                                            </Typography>
+                                                            <img
+                                                                src={ch.signatureLojaSaida.url}
+                                                                alt="Assinatura Loja Saída"
+                                                                style={{ width: 180, border: "1px solid #ccc" }}
+                                                            />
+                                                        </Box>
+                                                    )}
                                                 </Paper>
 
                                                 {/* Seção: Devolução */}
                                                 <Paper sx={{ p: 2, mb: 2, backgroundColor: "#e8f5e9" }}>
-                                                    <Typography variant="h6" sx={{ fontSize: "1.4rem", mb: 1 }}>
+                                                    <Typography
+                                                        variant="h6"
+                                                        sx={{ fontSize: "1.4rem", mb: 1 }}
+                                                    >
                                                         Seção: Devolução
                                                     </Typography>
                                                     {ch.checklistDevolucao?.length > 0 && (
                                                         <>
-                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem", mb: 1 }}>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                sx={{ fontSize: "1.3rem", mb: 1 }}
+                                                            >
                                                                 Checklist de Devolução:
                                                             </Typography>
                                                             {ch.checklistDevolucao.map((item, idx) => (
@@ -565,34 +607,14 @@ function ChecklistsList() {
                                                             ))}
                                                         </>
                                                     )}
-                                                    {ch.signatureClienteDevolucao && (
-                                                        <Box sx={{ mt: 1 }}>
-                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
-                                                                Assinatura Cliente (Devolução):
-                                                            </Typography>
-                                                            <img
-                                                                src={ch.signatureClienteDevolucao.url}
-                                                                alt="Assinatura Cliente Devolução"
-                                                                style={{ width: 180, border: "1px solid #ccc" }}
-                                                            />
-                                                        </Box>
-                                                    )}
-                                                    {ch.signatureLojaDevolucao && (
-                                                        <Box sx={{ mt: 1 }}>
-                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
-                                                                Assinatura Loja (Devolução):
-                                                            </Typography>
-                                                            <img
-                                                                src={ch.signatureLojaDevolucao.url}
-                                                                alt="Assinatura Loja Devolução"
-                                                                style={{ width: 180, border: "1px solid #ccc" }}
-                                                            />
-                                                        </Box>
-                                                    )}
                                                     {ch._photos &&
-                                                        ch._photos.filter((p) => p.flow === "devolucao").length > 0 && (
+                                                        ch._photos.filter((p) => p.flow === "devolucao").length >
+                                                        0 && (
                                                             <Box sx={{ mt: 1 }}>
-                                                                <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
+                                                                <Typography
+                                                                    variant="subtitle1"
+                                                                    sx={{ fontSize: "1.3rem" }}
+                                                                >
                                                                     Fotos da Devolução:
                                                                 </Typography>
                                                                 <Box display="flex" flexWrap="wrap" gap={2} mt={1}>
@@ -617,6 +639,36 @@ function ChecklistsList() {
                                                                 </Box>
                                                             </Box>
                                                         )}
+                                                    {ch.signatureClienteDevolucao && (
+                                                        <Box sx={{ mt: 1 }}>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                sx={{ fontSize: "1.3rem" }}
+                                                            >
+                                                                Assinatura Cliente (Devolução):
+                                                            </Typography>
+                                                            <img
+                                                                src={ch.signatureClienteDevolucao.url}
+                                                                alt="Assinatura Cliente Devolução"
+                                                                style={{ width: 180, border: "1px solid #ccc" }}
+                                                            />
+                                                        </Box>
+                                                    )}
+                                                    {ch.signatureLojaDevolucao && (
+                                                        <Box sx={{ mt: 1 }}>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                sx={{ fontSize: "1.3rem" }}
+                                                            >
+                                                                Assinatura Loja (Devolução):
+                                                            </Typography>
+                                                            <img
+                                                                src={ch.signatureLojaDevolucao.url}
+                                                                alt="Assinatura Loja Devolução"
+                                                                style={{ width: 180, border: "1px solid #ccc" }}
+                                                            />
+                                                        </Box>
+                                                    )}
                                                 </Paper>
                                             </Box>
                                         </Collapse>

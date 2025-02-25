@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import React from "react";
+import { format } from "date-fns";
+import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 
 const styles = StyleSheet.create({
     page: {
         padding: 30,
-        backgroundColor: '#ffffff',
+        backgroundColor: "#ffffff",
     },
     header: {
         marginBottom: 20,
@@ -13,12 +13,12 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         marginBottom: 10,
-        textAlign: 'center',
-        fontWeight: 'bold',
+        textAlign: "center",
+        fontWeight: "bold",
     },
     companyInfo: {
         fontSize: 12,
-        textAlign: 'center',
+        textAlign: "center",
         marginBottom: 3,
     },
     section: {
@@ -27,172 +27,123 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         marginBottom: 8,
-        fontWeight: 'bold',
-        backgroundColor: '#f0f0f0',
+        fontWeight: "bold",
+        backgroundColor: "#f0f0f0",
         padding: 5,
     },
     row: {
-        flexDirection: 'row',
+        flexDirection: "row",
         marginBottom: 5,
     },
     label: {
-        width: '30%',
-        fontWeight: 'bold',
+        width: "30%",
+        fontWeight: "bold",
+        fontSize: 11,
     },
     value: {
-        width: '70%',
+        width: "70%",
+        fontSize: 11,
     },
     table: {
-        display: 'table',
-        width: '100%',
-        borderStyle: 'solid',
+        display: "table",
+        width: "100%",
+        borderStyle: "solid",
         borderWidth: 1,
-        borderColor: '#000',
+        borderColor: "#000",
         marginBottom: 10,
     },
     tableRow: {
-        flexDirection: 'row',
+        flexDirection: "row",
         borderBottomWidth: 1,
-        borderBottomColor: '#000',
+        borderBottomColor: "#000",
     },
     tableHeader: {
-        backgroundColor: '#f0f0f0',
-        fontWeight: 'bold',
+        backgroundColor: "#f0f0f0",
+        fontWeight: "bold",
     },
     tableCell: {
         padding: 5,
         borderRightWidth: 1,
-        borderRightColor: '#000',
+        borderRightColor: "#000",
         flex: 1,
+        fontSize: 10,
     },
     checklistItem: {
         marginBottom: 5,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
+        fontSize: 11,
     },
     bullet: {
         width: 10,
         marginRight: 5,
     },
     signatureSection: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexDirection: "row",
+        justifyContent: "space-between",
         marginTop: 20,
     },
     signatureContainer: {
-        width: '45%',
+        width: "45%",
     },
     signatureBox: {
-        border: '1pt solid black',
+        border: "1pt solid black",
         padding: 10,
         marginTop: 5,
     },
     signature: {
-        width: '100%',
-        height: 100,
-        objectFit: 'contain',
+        width: "100%",
+        height: 70,
+        objectFit: "contain",
     },
     signatureLabel: {
         fontSize: 12,
         marginBottom: 5,
-        textAlign: 'center',
+        textAlign: "center",
     },
     signatureName: {
         fontSize: 10,
         marginTop: 5,
-        textAlign: 'center',
+        textAlign: "center",
     },
     attachment: {
         marginBottom: 10,
     },
     attachmentImage: {
-        width: '100%',
-        height: 200,
-        objectFit: 'contain',
+        width: "100%",
+        height: 150,
+        objectFit: "contain",
     },
     attachmentCaption: {
-        fontSize: 10,
-        textAlign: 'center',
+        fontSize: 9,
+        textAlign: "center",
         marginTop: 5,
     },
 });
 
 const ServiceReport = ({ reportData = {} }) => {
-    // O JSON já é o objeto do relatório (retirado de result), usamos-o diretamente:
     const report = reportData;
 
-    // Estados para armazenar as imagens convertidas (ou já em base64)
-    const [techSignature, setTechSignature] = useState(report.technicianSignature);
-    const [custSignature, setCustSignature] = useState(report.customerSignature);
-    const [attachments, setAttachments] = useState(report.attachments || []);
-
-    // Função auxiliar para converter uma URL de imagem para base64
-    const getBase64ImageFromUrl = async (url) => {
-        try {
-            const res = await fetch(url, { mode: 'cors' });
-            const blob = await res.blob();
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        } catch (error) {
-            console.error('Erro ao converter imagem:', url, error);
-            return url; // caso a conversão falhe, retorna a URL original
-        }
-    };
-
-    // useEffect para converter as imagens (assinaturas e anexos) para base64, se necessário
-    useEffect(() => {
-        const convertImages = async () => {
-            // Converter assinatura do técnico, se necessário
-            if (report.technicianSignature && !report.technicianSignature.startsWith('data:')) {
-                const base64 = await getBase64ImageFromUrl(report.technicianSignature);
-                setTechSignature(base64);
-            }
-            // Converter assinatura do cliente, se necessário
-            if (report.customerSignature && !report.customerSignature.startsWith('data:')) {
-                const base64 = await getBase64ImageFromUrl(report.customerSignature);
-                setCustSignature(base64);
-            }
-            // Converter anexos, se necessário
-            if (report.attachments && Array.isArray(report.attachments)) {
-                const converted = await Promise.all(
-                    report.attachments.map(async (att) => {
-                        if (att.fileUrl && !att.fileUrl.startsWith('data:')) {
-                            const base64 = await getBase64ImageFromUrl(att.fileUrl);
-                            return { ...att, fileUrl: base64 };
-                        }
-                        return att;
-                    })
-                );
-                setAttachments(converted);
-            }
-        };
-        convertImages();
-    }, [report]);
-
-    // Função para formatar datas com date-fns
+    // Função auxiliar para formatar datas
     const formatDate = (dateString) => {
         const date = new Date(dateString);
-        return isNaN(date.getTime()) ? 'Data inválida' : format(date, 'dd/MM/yyyy HH:mm');
+        return isNaN(date.getTime()) ? "Data inválida" : format(date, "dd/MM/yyyy HH:mm");
     };
 
     // Formata o checklist separando os itens
     const formatChecklistText = (text) => {
-        return text.split(', ').map(item =>
+        return text.split(", ").map((item) =>
             item
-                .replace(/([A-Z])/g, ' $1')
+                .replace(/([A-Z])/g, " $1")
                 .toLowerCase()
-                .replace(/^./, str => str.toUpperCase())
+                .replace(/^./, (str) => str.toUpperCase())
         );
     };
 
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-                {/* Cabeçalho com informações da empresa */}
+                {/* Cabeçalho */}
                 <View style={styles.header}>
                     <Text style={styles.title}>Relatório de Serviço</Text>
                     <Text style={styles.companyInfo}>Ordem de Serviço Digital</Text>
@@ -210,19 +161,19 @@ const ServiceReport = ({ reportData = {} }) => {
                     <Text style={styles.sectionTitle}>Informações do Cliente</Text>
                     <View style={styles.row}>
                         <Text style={styles.label}>Nome:</Text>
-                        <Text style={styles.value}>{report.customer?.name || 'N/A'}</Text>
+                        <Text style={styles.value}>{report.customer?.name || "N/A"}</Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Email:</Text>
-                        <Text style={styles.value}>{report.customer?.email || 'N/A'}</Text>
+                        <Text style={styles.value}>{report.customer?.email || "N/A"}</Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Endereço:</Text>
-                        <Text style={styles.value}>{report.customer?.address || 'N/A'}</Text>
+                        <Text style={styles.value}>{report.customer?.address || "N/A"}</Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Telefone:</Text>
-                        <Text style={styles.value}>{report.customer?.phone || 'N/A'}</Text>
+                        <Text style={styles.value}>{report.customer?.phone || "N/A"}</Text>
                     </View>
                 </View>
 
@@ -231,15 +182,17 @@ const ServiceReport = ({ reportData = {} }) => {
                     <Text style={styles.sectionTitle}>Informações do Gerador</Text>
                     <View style={styles.row}>
                         <Text style={styles.label}>Nome:</Text>
-                        <Text style={styles.value}>{report.generator?.name || 'N/A'}</Text>
+                        <Text style={styles.value}>{report.generator?.name || "N/A"}</Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Número de Série:</Text>
-                        <Text style={styles.value}>{report.generator?.serialNumber || 'N/A'}</Text>
+                        <Text style={styles.value}>
+                            {report.generator?.serialNumber || "N/A"}
+                        </Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Localização:</Text>
-                        <Text style={styles.value}>{report.generator?.location || 'N/A'}</Text>
+                        <Text style={styles.value}>{report.generator?.location || "N/A"}</Text>
                     </View>
                 </View>
 
@@ -249,31 +202,31 @@ const ServiceReport = ({ reportData = {} }) => {
                     <View style={styles.row}>
                         <Text style={styles.label}>Data de Check-in:</Text>
                         <Text style={styles.value}>
-                            {report.checkInTime ? formatDate(report.checkInTime) : 'N/A'}
+                            {report.checkInTime ? formatDate(report.checkInTime) : "N/A"}
                         </Text>
                     </View>
                     <View style={styles.row}>
-                        <Text style={styles.label}>Horário de Check-out:</Text>
+                        <Text style={styles.label}>Data de Check-out:</Text>
                         <Text style={styles.value}>
-                            {report.checkOutTime ? report.checkOutTime : 'N/A'}
+                            {report.checkOutTime ? formatDate(report.checkOutTime) : "N/A"}
                         </Text>
                     </View>
                     <View style={styles.row}>
-                        <Text style={styles.label}>Horímetro/Mileage:</Text>
+                        <Text style={styles.label}>Horímetro:</Text>
                         <Text style={styles.value}>
-                            {report.mileage
-                                ? report.mileage
-                                : (report.checklistInputs &&
-                                    report.checklistInputs.find(input => input.key === "horimetro")?.value) || 'N/A'}
+                            {report.horimetro ||
+                                (report.checklistInputs &&
+                                    report.checklistInputs.find((inp) => inp.key === "horimetro")?.value) ||
+                                "N/A"}
                         </Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Descrição:</Text>
-                        <Text style={styles.value}>{report.reportDescription || 'N/A'}</Text>
+                        <Text style={styles.value}>{report.reportDescription || "N/A"}</Text>
                     </View>
                 </View>
 
-                {/* Medições */}
+                {/* Medições (checklistInputs) */}
                 {report.checklistInputs && report.checklistInputs.length > 0 && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Medições</Text>
@@ -286,9 +239,9 @@ const ServiceReport = ({ reportData = {} }) => {
                                 <View key={index} style={styles.tableRow}>
                                     <Text style={styles.tableCell}>
                                         {input.key
-                                            .replace(/([A-Z])/g, ' $1')
+                                            .replace(/([A-Z])/g, " $1")
                                             .toLowerCase()
-                                            .replace(/^./, str => str.toUpperCase())}
+                                            .replace(/^./, (str) => str.toUpperCase())}
                                     </Text>
                                     <Text style={styles.tableCell}>{input.value}</Text>
                                 </View>
@@ -297,7 +250,7 @@ const ServiceReport = ({ reportData = {} }) => {
                     </View>
                 )}
 
-                {/* Peças Utilizadas */}
+                {/* Peças Utilizadas (partsUsed) */}
                 {report.partsUsed && report.partsUsed.length > 0 && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Peças Utilizadas</Text>
@@ -320,7 +273,7 @@ const ServiceReport = ({ reportData = {} }) => {
                     </View>
                 )}
 
-                {/* Checklist */}
+                {/* Checklist Text */}
                 {report.checklistText && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Checklist de Verificação</Text>
@@ -334,43 +287,42 @@ const ServiceReport = ({ reportData = {} }) => {
                 )}
 
                 {/* Assinaturas */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Assinaturas</Text>
-                    <View style={styles.signatureSection}>
-                        <View style={styles.signatureContainer}>
-                            <Text style={styles.signatureLabel}>Assinatura do Técnico</Text>
-                            <View style={styles.signatureBox}>
-                                {techSignature ? (
-                                    <Image style={styles.signature} src={techSignature} />
-                                ) : (
-                                    <Text>Imagem não disponível</Text>
-                                )}
-                            </View>
-                            <Text style={styles.signatureName}>
-                                {report.technician?.username || 'N/A'}
-                            </Text>
-                        </View>
-                        <View style={styles.signatureContainer}>
-                            <Text style={styles.signatureLabel}>Assinatura do Cliente</Text>
-                            <View style={styles.signatureBox}>
-                                {custSignature ? (
-                                    <Image style={styles.signature} src={custSignature} />
-                                ) : (
-                                    <Text>Imagem não disponível</Text>
-                                )}
-                            </View>
-                            <Text style={styles.signatureName}>
-                                {report.customer?.name || 'N/A'}
-                            </Text>
+                {(report.technicianSignature || report.customerSignature) && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Assinaturas</Text>
+                        <View style={styles.signatureSection}>
+                            {/* Assinatura do Técnico */}
+                            {report.technicianSignature && (
+                                <View style={styles.signatureContainer}>
+                                    <Text style={styles.signatureLabel}>Assinatura do Técnico</Text>
+                                    <View style={styles.signatureBox}>
+                                        <Image style={styles.signature} src={report.technicianSignature} />
+                                    </View>
+                                    <Text style={styles.signatureName}>
+                                        {report.technician?.username || "N/A"}
+                                    </Text>
+                                </View>
+                            )}
+
+                            {/* Assinatura do Cliente */}
+                            {report.customerSignature && (
+                                <View style={styles.signatureContainer}>
+                                    <Text style={styles.signatureLabel}>Assinatura do Cliente</Text>
+                                    <View style={styles.signatureBox}>
+                                        <Image style={styles.signature} src={report.customerSignature} />
+                                    </View>
+                                    <Text style={styles.signatureName}>{report.customer?.name || "N/A"}</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
-                </View>
+                )}
 
                 {/* Anexos */}
                 {report.attachments && report.attachments.length > 0 && (
                     <View style={styles.section} break>
                         <Text style={styles.sectionTitle}>Anexos</Text>
-                        {attachments.map((attachment, index) => (
+                        {report.attachments.map((attachment, index) => (
                             <View key={index} style={styles.attachment}>
                                 <Image style={styles.attachmentImage} src={attachment.fileUrl} />
                                 <Text style={styles.attachmentCaption}>{attachment.fileName}</Text>

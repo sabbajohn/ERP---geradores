@@ -33,7 +33,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import CheckIcon from "@mui/icons-material/Check";
 import api from "../services/api";
 import { PDFDownloadLink } from "@react-pdf/renderer";
-import ServiceReport from "../components/ServiceReport"; // Certifique-se de que o caminho está correto
+import ServiceReport from "../components/ServiceReport";
 
 // Função utilitária para formatar os itens do checklist
 const formatChecklistItem = (item) => {
@@ -127,7 +127,7 @@ function Reports() {
     setOpenChecklistModal(true);
   };
 
-  // Função para converter uma URL para base64
+  // Função para converter uma URL para base64 (caso o anexo não possua base64File)
   const getBase64ImageFromUrl = async (url) => {
     try {
       const response = await fetch(url, { mode: "cors" });
@@ -140,7 +140,7 @@ function Reports() {
       });
     } catch (error) {
       console.error("Erro ao converter imagem:", url, error);
-      return url;
+      return url; // em caso de erro, devolve a URL original
     }
   };
 
@@ -152,6 +152,7 @@ function Reports() {
     }
 
     try {
+      // 1) Buscar dados mais completos do relatório
       const response = await api.post(
         "/functions/getMaintenanceReportDetails",
         { reportId: selectedReport.objectId },
@@ -167,8 +168,9 @@ function Reports() {
         return;
       }
 
-      const reportData = response.data.result;
+      let reportData = response.data.result;
 
+      // Se existir checklistText, formata
       if (reportData.checklistText) {
         const checklistItems = reportData.checklistText
           .split(",")
@@ -176,19 +178,39 @@ function Reports() {
         reportData.checklistText = checklistItems.join(", ");
       }
 
+      // ----- SE EXISTIR base64File, JÁ UTILIZA -----
+      if (reportData.attachments && Array.isArray(reportData.attachments)) {
+        reportData.attachments.forEach((att) => {
+          // Se o novo campo base64File existir, já monta o data:image
+          if (att.base64File) {
+            att.fileUrl = `data:image/jpeg;base64,${att.base64File}`;
+          }
+        });
+      }
+
+      // Converte assinaturas se não tiverem data:
       if (reportData.technicianSignature && !reportData.technicianSignature.startsWith("data:")) {
-        reportData.technicianSignature = await getBase64ImageFromUrl(reportData.technicianSignature);
+        reportData.technicianSignature = await getBase64ImageFromUrl(
+          reportData.technicianSignature
+        );
       }
       if (reportData.customerSignature && !reportData.customerSignature.startsWith("data:")) {
-        reportData.customerSignature = await getBase64ImageFromUrl(reportData.customerSignature);
+        reportData.customerSignature = await getBase64ImageFromUrl(
+          reportData.customerSignature
+        );
       }
+
+      // Converte anexos que ainda não estejam em data: (p.ex. relatórios antigos)
       if (reportData.attachments && Array.isArray(reportData.attachments)) {
-        for (let i = 0; i < reportData.attachments.length; i++) {
-          const att = reportData.attachments[i];
-          if (att.fileUrl && !att.fileUrl.startsWith("data:")) {
-            reportData.attachments[i].fileUrl = await getBase64ImageFromUrl(att.fileUrl);
-          }
-        }
+        reportData.attachments = await Promise.all(
+          reportData.attachments.map(async (att) => {
+            // Se já estiver em data: (ou acabou de ser montado acima), não chamamos fetch
+            if (att.fileUrl && !att.fileUrl.startsWith("data:")) {
+              att.fileUrl = await getBase64ImageFromUrl(att.fileUrl);
+            }
+            return att;
+          })
+        );
       }
 
       console.log("Dados para PDF (imagens convertidas):", reportData);
@@ -279,15 +301,15 @@ function Reports() {
             {filteredReports.map((rep) => {
               const genSerial = rep.generatorId?.serialNumber || "Sem gerador";
               const techName = rep.technicianUser?.username || "Desconhecido";
-              let iso = rep.createdAt?.iso || rep.createdAt;
-              let createDate = iso ? new Date(iso).toLocaleString("pt-BR") : "";
+              const iso = rep.createdAt?.iso || rep.createdAt;
+              const createDate = iso ? new Date(iso).toLocaleString("pt-BR") : "";
               const horimetroValue =
                 rep.horimetro ||
                 (rep.checklistInputs &&
                   rep.checklistInputs.find((input) => input.key === "horimetro")?.value) ||
                 "N/A";
-              // Obtém o nome do cliente a partir do novo campo (maintenanceCustomer)
-              const clientName = rep.maintenanceCustomer?.name || rep.customerId?.name || "N/A";
+              const clientName =
+                rep.maintenanceCustomer?.name || rep.customerId?.name || "N/A";
 
               return (
                 <TableRow key={rep.objectId}>
@@ -360,19 +382,18 @@ function Reports() {
                 </Typography>
                 <Typography>
                   <strong>Nome do Cliente:</strong>{" "}
-                  {selectedReport.maintenanceCustomer?.name || selectedReport.customerId?.name || "N/A"}
+                  {selectedReport.maintenanceCustomer?.name ||
+                    selectedReport.customerId?.name ||
+                    "N/A"}
                 </Typography>
                 <Typography>
-                  <strong>E-mail:</strong>{" "}
-                  {selectedReport.customerId?.email || "-"}
+                  <strong>E-mail:</strong> {selectedReport.customerId?.email || "-"}
                 </Typography>
                 <Typography>
-                  <strong>Endereço:</strong>{" "}
-                  {selectedReport.customerId?.address || "-"}
+                  <strong>Endereço:</strong> {selectedReport.customerId?.address || "-"}
                 </Typography>
                 <Typography>
-                  <strong>Telefone:</strong>{" "}
-                  {selectedReport.customerId?.phone || "-"}
+                  <strong>Telefone:</strong> {selectedReport.customerId?.phone || "-"}
                 </Typography>
               </MuiPaper>
 
@@ -415,8 +436,7 @@ function Reports() {
                   </Grid>
                   <Grid item xs={6}>
                     <Typography>
-                      <strong>Duração:</strong>{" "}
-                      {selectedReport.duration || "N/A"}
+                      <strong>Duração:</strong> {selectedReport.duration || "N/A"}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
@@ -424,7 +444,9 @@ function Reports() {
                       <strong>Horímetro:</strong>{" "}
                       {selectedReport.horimetro ||
                         (selectedReport.checklistInputs &&
-                          selectedReport.checklistInputs.find((input) => input.key === "horimetro")?.value) ||
+                          selectedReport.checklistInputs.find(
+                            (input) => input.key === "horimetro"
+                          )?.value) ||
                         "N/A"}
                     </Typography>
                   </Grid>
@@ -468,32 +490,34 @@ function Reports() {
                 </MuiPaper>
               )}
 
-              {/* Assinaturas (se desejar manter em outra parte do modal, senão, pode removê-las) */}
-              {selectedReport.technicianSignature && selectedReport.technicianSignature !== "" && (
-                <MuiPaper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
-                    Assinatura do Técnico
-                  </Typography>
-                  <img
-                    src={selectedReport.technicianSignature}
-                    alt="Assinatura do Técnico"
-                    style={{ maxWidth: "100%", height: "auto" }}
-                  />
-                </MuiPaper>
-              )}
+              {/* Assinaturas */}
+              {selectedReport.technicianSignature &&
+                selectedReport.technicianSignature !== "" && (
+                  <MuiPaper sx={{ p: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                      Assinatura do Técnico
+                    </Typography>
+                    <img
+                      src={selectedReport.technicianSignature}
+                      alt="Assinatura do Técnico"
+                      style={{ maxWidth: "100%", height: "auto" }}
+                    />
+                  </MuiPaper>
+                )}
 
-              {selectedReport.customerSignature && selectedReport.customerSignature !== "" && (
-                <MuiPaper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
-                    Assinatura do Cliente
-                  </Typography>
-                  <img
-                    src={selectedReport.customerSignature}
-                    alt="Assinatura do Cliente"
-                    style={{ maxWidth: "100%", height: "auto" }}
-                  />
-                </MuiPaper>
-              )}
+              {selectedReport.customerSignature &&
+                selectedReport.customerSignature !== "" && (
+                  <MuiPaper sx={{ p: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                      Assinatura do Cliente
+                    </Typography>
+                    <img
+                      src={selectedReport.customerSignature}
+                      alt="Assinatura do Cliente"
+                      style={{ maxWidth: "100%", height: "auto" }}
+                    />
+                  </MuiPaper>
+                )}
 
               {/* Anexos */}
               {attachments.length > 0 && (
@@ -542,6 +566,7 @@ function Reports() {
                   startIcon={<DownloadIcon />}
                   disabled={loading}
                   onClick={() => {
+                    // Fecha após 5s por segurança (opcional)
                     setTimeout(() => {
                       setShowPdfDownloadLink(false);
                       setPdfReportData(null);

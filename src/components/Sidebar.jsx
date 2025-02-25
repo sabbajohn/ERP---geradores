@@ -24,7 +24,7 @@ import {
   FaSignOutAlt,
   FaHandshake,
   FaWhatsapp,
-  FaChartLine, // <--- Adicionado para Relatórios Estatísticos
+  FaChartLine,
 } from "react-icons/fa";
 
 function Sidebar({ onClose }) {
@@ -67,9 +67,11 @@ function Sidebar({ onClose }) {
           p: 2,
         }}
       >
-        <Typography variant="h6" sx={{ display: "flex", alignItems: "center" }}>
-          <FaBolt style={{ marginRight: 8 }} /> Energimaq
-        </Typography>
+        <img
+          src="https://parsefiles.back4app.com/xwpmfaGkbxWwTv9txCSD6gk8BLj9XiPzXzQ3L92E/992b890208e68cbb6b1f7c19fe19f80e_ENERGIMAQ%20LOGO%20ORIGINAL.png"
+          alt="Logo Energimaq"
+          style={{ maxWidth: "100%", height: "auto" }}
+        />
       </Box>
 
       {/* Menu de navegação */}
@@ -127,7 +129,7 @@ function Sidebar({ onClose }) {
             </ListItemButton>
           </ListItem>
 
-          {/* Rota para Calendário (ainda que não exista mais sidebar específica) */}
+          {/* Rota para Calendário */}
           <ListItem disablePadding>
             <ListItemButton
               component={NavLink}
@@ -206,7 +208,7 @@ function Sidebar({ onClose }) {
             </ListItemButton>
           </ListItem>
 
-          {/* Exemplo de link para o Dashboard de relatórios estatísticos */}
+          {/* Link para o Dashboard de relatórios estatísticos */}
           <ListItem disablePadding>
             <ListItemButton
               component={NavLink}
