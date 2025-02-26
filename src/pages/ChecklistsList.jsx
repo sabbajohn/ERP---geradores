@@ -19,6 +19,49 @@ import "jspdf-autotable";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 
+// Função para obter o content-type da imagem (quando necessário)
+const getContentType = async (url) => {
+    const res = await fetch(url, { method: "HEAD" });
+    return res.headers.get("content-type") || "";
+};
+
+// Função para converter uma URL em dataURL (base64)
+const fetchFileAsBase64 = async (fileUrl) => {
+    const res = await fetch(fileUrl);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
+// Função para adicionar imagem ao PDF usando jsPDF.
+// Se o "url" já for um data URI (base64), ele o utiliza diretamente.
+const addImageFromURL = async (doc, url, x, y, width, height) => {
+    try {
+        let base64;
+        let format = "PNG";
+        if (url.startsWith("data:")) {
+            base64 = url;
+            // Se o data URI indicar JPEG, ajusta o formato
+            if (url.includes("jpeg") || url.includes("jpg")) {
+                format = "JPEG";
+            }
+        } else {
+            const ct = await getContentType(url);
+            base64 = await fetchFileAsBase64(url);
+            if (ct.includes("jpeg") || ct.includes("jpg")) {
+                format = "JPEG";
+            }
+        }
+        doc.addImage(base64, format, x, y, width, height);
+    } catch (err) {
+        console.error("Erro ao adicionar imagem ao PDF:", err);
+    }
+};
+
 function ChecklistsList() {
     const [checklists, setChecklists] = useState([]);
     const [expandedChecklistId, setExpandedChecklistId] = useState(null);
@@ -37,7 +80,7 @@ function ChecklistsList() {
                 { headers: { "X-Parse-Session-Token": sessionToken } }
             );
             if (response.data.result) {
-                // Caso o Cloud Code não filtre automaticamente os soft deleted, fazemos aqui:
+                // Filtra checklists não deletados
                 const all = response.data.result.filter((ch) => !ch.isDeleted);
                 const enriched = await Promise.all(
                     all.map(async (ch) => {
@@ -47,7 +90,7 @@ function ChecklistsList() {
                             { headers: { "X-Parse-Session-Token": sessionToken } }
                         );
                         const fotos = photosResp.data.result || [];
-                        // Armazena as fotos no checklist no campo _photos
+                        // Presumindo que o backend já retorne a imagem como base64 no campo "base64"
                         return { ...ch, _photos: fotos };
                     })
                 );
@@ -60,45 +103,10 @@ function ChecklistsList() {
 
     // 2) Expandir/recolher detalhes do checklist
     const toggleExpand = (checklistId) => {
-        setExpandedChecklistId(
-            expandedChecklistId === checklistId ? null : checklistId
-        );
+        setExpandedChecklistId(expandedChecklistId === checklistId ? null : checklistId);
     };
 
-    // 3) Função auxiliar: Obter content-type da imagem (para diferenciar PNG e JPEG)
-    const getContentType = async (url) => {
-        const res = await fetch(url, { method: "HEAD" });
-        return res.headers.get("content-type") || "";
-    };
-
-    // 4) Converter uma URL em dataURL (base64)
-    const fetchFileAsBase64 = async (fileUrl) => {
-        const res = await fetch(fileUrl);
-        const blob = await res.blob();
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-    };
-
-    // 5) Adicionar imagem ao PDF, detectando o formato (PNG/JPEG)
-    const addImageFromURL = async (doc, url, x, y, width, height) => {
-        try {
-            const ct = await getContentType(url);
-            const base64 = await fetchFileAsBase64(url);
-            let format = "PNG";
-            if (ct.includes("jpeg") || ct.includes("jpg")) {
-                format = "JPEG";
-            }
-            doc.addImage(base64, format, x, y, width, height);
-        } catch (err) {
-            console.error("Erro ao adicionar imagem ao PDF:", err);
-        }
-    };
-
-    // 6) Exportar PDF Resumido (todos os checklists) – sem exibir o ID
+    // 3) Exportar PDF Resumido (todos os checklists) – sem exibir o ID
     const exportAllToPDF = async () => {
         if (checklists.length === 0) {
             alert("Não há checklists para exportar!");
@@ -136,7 +144,7 @@ function ChecklistsList() {
         doc.save("checklists_resumido.pdf");
     };
 
-    // 7) Exportar PDF Detalhado de um checklist, agrupando as seções "Saída" e "Devolução"
+    // 4) Exportar PDF Detalhado de um checklist
     const exportSingleChecklistToPDF = async (checklist) => {
         try {
             const doc = new jsPDF();
@@ -144,10 +152,10 @@ function ChecklistsList() {
             doc.text(`Checklist Detalhado`, 14, 10);
             let cursorY = 20;
 
-            // 7.1) Informações Gerais (excluindo o ID)
+            // 4.1) Informações Gerais (excluindo o ID)
             const infoBody = [
-                ["Gerador", checklist.gerador?.serialNumber || "Sem Gerador"],
-                ["Cliente", checklist.cliente?.name || "Sem Cliente"],
+                ["Gerador", checklist.gerador?.serialNumber || checklist.gerador?.name || "Sem Gerador"],
+                ["Cliente", checklist.cliente ? checklist.cliente.name || "Sem Cliente" : "Sem Cliente"],
                 ["Horímetro Saída", checklist.horimetroSaida || ""],
                 ["Horímetro Devolução", checklist.horimetroDevolucao || ""],
                 [
@@ -168,7 +176,7 @@ function ChecklistsList() {
             });
             cursorY = doc.lastAutoTable.finalY + 10;
 
-            // 7.2) Seção SAÍDA
+            // 4.2) Seção SAÍDA
             doc.text("Seção: Saída", 14, cursorY);
             cursorY += 5;
 
@@ -196,8 +204,10 @@ function ChecklistsList() {
                     cursorY += 5;
                     for (let i = 0; i < fotosSaida.length; i++) {
                         const photo = fotosSaida[i];
-                        if (photo.photo && photo.photo.url) {
-                            await addImageFromURL(doc, photo.photo.url, 14, cursorY, 50, 30);
+                        // Usa a imagem em base64 se disponível; caso contrário, tenta usar a URL (que pode falhar em produção)
+                        const photoSource = photo.photo?.base64 || photo.photo?.url;
+                        if (photoSource) {
+                            await addImageFromURL(doc, photoSource, 14, cursorY, 50, 30);
                             cursorY += 40;
                             if (cursorY > 260) {
                                 doc.addPage();
@@ -211,17 +221,31 @@ function ChecklistsList() {
             if (checklist.signatureClienteSaida) {
                 doc.text("Assinatura Cliente (Saída):", 14, cursorY);
                 cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureClienteSaida.url, 14, cursorY, 50, 20);
+                await addImageFromURL(
+                    doc,
+                    checklist.signatureClienteSaida?.base64 || checklist.signatureClienteSaida?.url,
+                    14,
+                    cursorY,
+                    50,
+                    20
+                );
                 cursorY += 30;
             }
             if (checklist.signatureLojaSaida) {
                 doc.text("Assinatura Loja (Saída):", 14, cursorY);
                 cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureLojaSaida.url, 14, cursorY, 50, 20);
+                await addImageFromURL(
+                    doc,
+                    checklist.signatureLojaSaida?.base64 || checklist.signatureLojaSaida?.url,
+                    14,
+                    cursorY,
+                    50,
+                    20
+                );
                 cursorY += 30;
             }
 
-            // 7.3) Seção DEVOLUÇÃO
+            // 4.3) Seção DEVOLUÇÃO
             doc.text("Seção: Devolução", 14, cursorY);
             cursorY += 5;
 
@@ -249,8 +273,9 @@ function ChecklistsList() {
                     cursorY += 5;
                     for (let i = 0; i < fotosDevolucao.length; i++) {
                         const photo = fotosDevolucao[i];
-                        if (photo.photo && photo.photo.url) {
-                            await addImageFromURL(doc, photo.photo.url, 14, cursorY, 50, 30);
+                        const photoSource = photo.photo?.base64 || photo.photo?.url;
+                        if (photoSource) {
+                            await addImageFromURL(doc, photoSource, 14, cursorY, 50, 30);
                             cursorY += 40;
                             if (cursorY > 260) {
                                 doc.addPage();
@@ -264,13 +289,27 @@ function ChecklistsList() {
             if (checklist.signatureClienteDevolucao) {
                 doc.text("Assinatura Cliente (Devolução):", 14, cursorY);
                 cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureClienteDevolucao.url, 14, cursorY, 50, 20);
+                await addImageFromURL(
+                    doc,
+                    checklist.signatureClienteDevolucao?.base64 || checklist.signatureClienteDevolucao?.url,
+                    14,
+                    cursorY,
+                    50,
+                    20
+                );
                 cursorY += 30;
             }
             if (checklist.signatureLojaDevolucao) {
                 doc.text("Assinatura Loja (Devolução):", 14, cursorY);
                 cursorY += 5;
-                await addImageFromURL(doc, checklist.signatureLojaDevolucao.url, 14, cursorY, 50, 20);
+                await addImageFromURL(
+                    doc,
+                    checklist.signatureLojaDevolucao?.base64 || checklist.signatureLojaDevolucao?.url,
+                    14,
+                    cursorY,
+                    50,
+                    20
+                );
                 cursorY += 30;
             }
 
@@ -322,7 +361,6 @@ function ChecklistsList() {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4 }}>
-            {/* Botão de Voltar para a tela de ChecklistLocacao */}
             <Box sx={{ mb: 2 }}>
                 <Button
                     variant="contained"
@@ -407,11 +445,7 @@ function ChecklistsList() {
                                             onClick={() => toggleExpand(ch.objectId)}
                                             sx={{ fontSize: "1rem", mr: 1 }}
                                         >
-                                            {isExpanded ? (
-                                                <ExpandLessIcon />
-                                            ) : (
-                                                <ExpandMoreIcon />
-                                            )}
+                                            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                                         </Button>
                                         <Button
                                             variant="outlined"
@@ -429,34 +463,21 @@ function ChecklistsList() {
                                     <TableCell colSpan={5} style={{ padding: 0 }}>
                                         <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                                             <Box sx={{ m: 2 }}>
-                                                {/* Horímetros */}
-                                                <Typography
-                                                    variant="h6"
-                                                    sx={{ fontSize: "1.3rem", mb: 1 }}
-                                                >
+                                                <Typography variant="h6" sx={{ fontSize: "1.3rem", mb: 1 }}>
                                                     Horímetro Saída: {ch.horimetroSaida || "--"}
                                                 </Typography>
-                                                <Typography
-                                                    variant="h6"
-                                                    sx={{ fontSize: "1.3rem", mb: 2 }}
-                                                >
+                                                <Typography variant="h6" sx={{ fontSize: "1.3rem", mb: 2 }}>
                                                     Horímetro Devolução: {ch.horimetroDevolucao || "--"}
                                                 </Typography>
 
                                                 {/* Seção: Saída */}
                                                 <Paper sx={{ p: 2, mb: 2, backgroundColor: "#e3f2fd" }}>
-                                                    <Typography
-                                                        variant="h6"
-                                                        sx={{ fontSize: "1.4rem", mb: 1 }}
-                                                    >
+                                                    <Typography variant="h6" sx={{ fontSize: "1.4rem", mb: 1 }}>
                                                         Seção: Saída
                                                     </Typography>
                                                     {ch.checklistSaida?.length > 0 && (
                                                         <>
-                                                            <Typography
-                                                                variant="subtitle1"
-                                                                sx={{ fontSize: "1.3rem", mb: 1 }}
-                                                            >
+                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem", mb: 1 }}>
                                                                 Checklist de Saída:
                                                             </Typography>
                                                             {ch.checklistSaida.map((item, idx) => (
@@ -494,25 +515,23 @@ function ChecklistsList() {
                                                         </>
                                                     )}
                                                     {ch._photos &&
-                                                        ch._photos.filter((p) => p.flow === "saida").length >
-                                                        0 && (
+                                                        ch._photos.filter((p) => p.flow === "saida").length > 0 && (
                                                             <Box sx={{ mt: 1 }}>
-                                                                <Typography
-                                                                    variant="subtitle1"
-                                                                    sx={{ fontSize: "1.3rem" }}
-                                                                >
+                                                                <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
                                                                     Fotos da Saída:
                                                                 </Typography>
                                                                 <Box display="flex" flexWrap="wrap" gap={2} mt={1}>
                                                                     {ch._photos
                                                                         .filter((p) => p.flow === "saida")
                                                                         .map((photoObj) => {
-                                                                            const photoUrl = photoObj.photo?.url;
-                                                                            if (!photoUrl) return null;
+                                                                            // Usa o campo base64 já retornado do backend
+                                                                            const photoSource =
+                                                                                photoObj.photo?.base64 || photoObj.photo?.url;
+                                                                            if (!photoSource) return null;
                                                                             return (
                                                                                 <img
                                                                                     key={photoObj.objectId}
-                                                                                    src={photoUrl}
+                                                                                    src={photoSource}
                                                                                     alt="Foto Saída"
                                                                                     style={{
                                                                                         width: 120,
@@ -527,14 +546,14 @@ function ChecklistsList() {
                                                         )}
                                                     {ch.signatureClienteSaida && (
                                                         <Box sx={{ mt: 1 }}>
-                                                            <Typography
-                                                                variant="subtitle1"
-                                                                sx={{ fontSize: "1.3rem" }}
-                                                            >
+                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
                                                                 Assinatura Cliente (Saída):
                                                             </Typography>
                                                             <img
-                                                                src={ch.signatureClienteSaida.url}
+                                                                src={
+                                                                    ch.signatureClienteSaida?.base64 ||
+                                                                    ch.signatureClienteSaida?.url
+                                                                }
                                                                 alt="Assinatura Cliente Saída"
                                                                 style={{ width: 180, border: "1px solid #ccc" }}
                                                             />
@@ -542,14 +561,14 @@ function ChecklistsList() {
                                                     )}
                                                     {ch.signatureLojaSaida && (
                                                         <Box sx={{ mt: 1 }}>
-                                                            <Typography
-                                                                variant="subtitle1"
-                                                                sx={{ fontSize: "1.3rem" }}
-                                                            >
+                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
                                                                 Assinatura Loja (Saída):
                                                             </Typography>
                                                             <img
-                                                                src={ch.signatureLojaSaida.url}
+                                                                src={
+                                                                    ch.signatureLojaSaida?.base64 ||
+                                                                    ch.signatureLojaSaida?.url
+                                                                }
                                                                 alt="Assinatura Loja Saída"
                                                                 style={{ width: 180, border: "1px solid #ccc" }}
                                                             />
@@ -559,18 +578,12 @@ function ChecklistsList() {
 
                                                 {/* Seção: Devolução */}
                                                 <Paper sx={{ p: 2, mb: 2, backgroundColor: "#e8f5e9" }}>
-                                                    <Typography
-                                                        variant="h6"
-                                                        sx={{ fontSize: "1.4rem", mb: 1 }}
-                                                    >
+                                                    <Typography variant="h6" sx={{ fontSize: "1.4rem", mb: 1 }}>
                                                         Seção: Devolução
                                                     </Typography>
                                                     {ch.checklistDevolucao?.length > 0 && (
                                                         <>
-                                                            <Typography
-                                                                variant="subtitle1"
-                                                                sx={{ fontSize: "1.3rem", mb: 1 }}
-                                                            >
+                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem", mb: 1 }}>
                                                                 Checklist de Devolução:
                                                             </Typography>
                                                             {ch.checklistDevolucao.map((item, idx) => (
@@ -608,25 +621,22 @@ function ChecklistsList() {
                                                         </>
                                                     )}
                                                     {ch._photos &&
-                                                        ch._photos.filter((p) => p.flow === "devolucao").length >
-                                                        0 && (
+                                                        ch._photos.filter((p) => p.flow === "devolucao").length > 0 && (
                                                             <Box sx={{ mt: 1 }}>
-                                                                <Typography
-                                                                    variant="subtitle1"
-                                                                    sx={{ fontSize: "1.3rem" }}
-                                                                >
+                                                                <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
                                                                     Fotos da Devolução:
                                                                 </Typography>
                                                                 <Box display="flex" flexWrap="wrap" gap={2} mt={1}>
                                                                     {ch._photos
                                                                         .filter((p) => p.flow === "devolucao")
                                                                         .map((photoObj) => {
-                                                                            const photoUrl = photoObj.photo?.url;
-                                                                            if (!photoUrl) return null;
+                                                                            const photoSource =
+                                                                                photoObj.photo?.base64 || photoObj.photo?.url;
+                                                                            if (!photoSource) return null;
                                                                             return (
                                                                                 <img
                                                                                     key={photoObj.objectId}
-                                                                                    src={photoUrl}
+                                                                                    src={photoSource}
                                                                                     alt="Foto Devolução"
                                                                                     style={{
                                                                                         width: 120,
@@ -641,14 +651,14 @@ function ChecklistsList() {
                                                         )}
                                                     {ch.signatureClienteDevolucao && (
                                                         <Box sx={{ mt: 1 }}>
-                                                            <Typography
-                                                                variant="subtitle1"
-                                                                sx={{ fontSize: "1.3rem" }}
-                                                            >
+                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
                                                                 Assinatura Cliente (Devolução):
                                                             </Typography>
                                                             <img
-                                                                src={ch.signatureClienteDevolucao.url}
+                                                                src={
+                                                                    ch.signatureClienteDevolucao?.base64 ||
+                                                                    ch.signatureClienteDevolucao?.url
+                                                                }
                                                                 alt="Assinatura Cliente Devolução"
                                                                 style={{ width: 180, border: "1px solid #ccc" }}
                                                             />
@@ -656,14 +666,14 @@ function ChecklistsList() {
                                                     )}
                                                     {ch.signatureLojaDevolucao && (
                                                         <Box sx={{ mt: 1 }}>
-                                                            <Typography
-                                                                variant="subtitle1"
-                                                                sx={{ fontSize: "1.3rem" }}
-                                                            >
+                                                            <Typography variant="subtitle1" sx={{ fontSize: "1.3rem" }}>
                                                                 Assinatura Loja (Devolução):
                                                             </Typography>
                                                             <img
-                                                                src={ch.signatureLojaDevolucao.url}
+                                                                src={
+                                                                    ch.signatureLojaDevolucao?.base64 ||
+                                                                    ch.signatureLojaDevolucao?.url
+                                                                }
                                                                 alt="Assinatura Loja Devolução"
                                                                 style={{ width: 180, border: "1px solid #ccc" }}
                                                             />
