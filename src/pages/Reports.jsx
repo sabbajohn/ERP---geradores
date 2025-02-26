@@ -44,6 +44,7 @@ const formatChecklistItem = (item) => {
 
 // Função utilitária para converter uma URL para base64
 async function getBase64ImageFromUrl(url, maxWidth = 800, maxHeight = 600) {
+  console.log('oi')
   try {
     // Busca a imagem e converte para blob
     const response = await fetch(url);
@@ -207,7 +208,7 @@ function Reports() {
         reportData.checklistText = checklistItems.join(", ");
       }
 
-      // Converte assinaturas para base64 (APENAS se ainda estiverem como URL)
+      // Converte assinaturas para base64 (se não estiverem em base64)
       if (
         reportData.technicianSignature &&
         !reportData.technicianSignature.startsWith("data:")
@@ -225,19 +226,12 @@ function Reports() {
         );
       }
 
-      // Para cada attachment, se não houver base64File, converta a URL
+      // Para cada attachment, se não houver a propriedade "base64", converte a partir da URL
       if (reportData.attachments && Array.isArray(reportData.attachments)) {
         const convertedAttachments = await Promise.all(
           reportData.attachments.map(async (att) => {
-            if (
-              att.base64File &&
-              att.base64File.startsWith("data:image/")
-            ) {
-              // Já vem convertido do backend
-              att.fileUrl = att.base64File;
-            } else {
-              // Converte a partir da URL
-              att.fileUrl = await getBase64ImageFromUrl(att.fileUrl);
+            if (!att.base64 && att.fileUrl) {
+              att.base64 = await getBase64ImageFromUrl(att.fileUrl);
             }
             return att;
           })
@@ -424,10 +418,7 @@ function Reports() {
 
               {/* Cliente */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: "bold", mb: 1 }}
-                >
+                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Informações do Cliente
                 </Typography>
                 <Typography>
@@ -452,10 +443,7 @@ function Reports() {
 
               {/* Gerador */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: "bold", mb: 1 }}
-                >
+                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Informações do Gerador
                 </Typography>
                 <Typography>
@@ -470,10 +458,7 @@ function Reports() {
 
               {/* Ordem de Serviço */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: "bold", mb: 1 }}
-                >
+                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Detalhes da Ordem de Serviço
                 </Typography>
                 <Grid container spacing={2}>
@@ -481,9 +466,7 @@ function Reports() {
                     <Typography>
                       <strong>Data de Check-in:</strong>{" "}
                       {selectedReport.checkInTime
-                        ? new Date(selectedReport.checkInTime).toLocaleString(
-                          "pt-BR"
-                        )
+                        ? new Date(selectedReport.checkInTime).toLocaleString("pt-BR")
                         : "N/A"}
                     </Typography>
                   </Grid>
@@ -491,9 +474,7 @@ function Reports() {
                     <Typography>
                       <strong>Data de Check-out:</strong>{" "}
                       {selectedReport.checkOutTime
-                        ? new Date(selectedReport.checkOutTime).toLocaleString(
-                          "pt-BR"
-                        )
+                        ? new Date(selectedReport.checkOutTime).toLocaleString("pt-BR")
                         : "N/A"}
                     </Typography>
                   </Grid>
@@ -508,9 +489,8 @@ function Reports() {
                       <strong>Horímetro:</strong>{" "}
                       {selectedReport.horimetro ||
                         (selectedReport.checklistInputs &&
-                          selectedReport.checklistInputs.find(
-                            (input) => input.key === "horimetro"
-                          )?.value) ||
+                          selectedReport.checklistInputs.find((input) => input.key === "horimetro")
+                            ?.value) ||
                         "N/A"}
                     </Typography>
                   </Grid>
@@ -519,10 +499,7 @@ function Reports() {
 
               {/* Relato */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: "bold", mb: 1 }}
-                >
+                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                   Relato de Execução
                 </Typography>
                 <Typography>
@@ -544,10 +521,7 @@ function Reports() {
               {/* Peças */}
               {selectedReport.partsUsed && selectedReport.partsUsed.length > 0 && (
                 <MuiPaper sx={{ p: 2 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: "bold", mb: 1 }}
-                  >
+                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Peças Trocadas
                   </Typography>
                   <List>
@@ -564,14 +538,15 @@ function Reports() {
               {selectedReport.technicianSignature &&
                 selectedReport.technicianSignature !== "" && (
                   <MuiPaper sx={{ p: 2 }}>
-                    <Typography
-                      variant="subtitle1"
-                      sx={{ fontWeight: "bold", mb: 1 }}
-                    >
+                    <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                       Assinatura do Técnico
                     </Typography>
                     <img
-                      src={selectedReport.technicianSignature}
+                      src={
+                        selectedReport.technicianSignature.startsWith("data:")
+                          ? selectedReport.technicianSignature
+                          : selectedReport.technicianSignature
+                      }
                       alt="Assinatura do Técnico"
                       style={{ maxWidth: "100%", height: "auto" }}
                     />
@@ -581,14 +556,15 @@ function Reports() {
               {selectedReport.customerSignature &&
                 selectedReport.customerSignature !== "" && (
                   <MuiPaper sx={{ p: 2 }}>
-                    <Typography
-                      variant="subtitle1"
-                      sx={{ fontWeight: "bold", mb: 1 }}
-                    >
+                    <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                       Assinatura do Cliente
                     </Typography>
                     <img
-                      src={selectedReport.customerSignature}
+                      src={
+                        selectedReport.customerSignature.startsWith("data:")
+                          ? selectedReport.customerSignature
+                          : selectedReport.customerSignature
+                      }
                       alt="Assinatura do Cliente"
                       style={{ maxWidth: "100%", height: "auto" }}
                     />
@@ -598,17 +574,14 @@ function Reports() {
               {/* Anexos */}
               {attachments.length > 0 && (
                 <MuiPaper sx={{ p: 2 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: "bold", mb: 1 }}
-                  >
+                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                     Fotos
                   </Typography>
                   {attachments.map((att, idx) => (
                     <Box key={idx} mb={2}>
                       <Typography variant="body2">{att.fileName}</Typography>
                       <img
-                        src={att.fileUrl}
+                        src={att.base64 ? att.base64 : att.fileUrl}
                         alt={att.fileName}
                         style={{ maxWidth: "100%", marginTop: "8px" }}
                       />
@@ -691,10 +664,7 @@ function Reports() {
                     selectedChecklist.checklistInputs.length > 0 && (
                       <>
                         <ListItem>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: "bold" }}
-                          >
+                          <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
                             Campos de Entrada:
                           </Typography>
                         </ListItem>
@@ -703,8 +673,7 @@ function Reports() {
                             <ListItemText
                               primary={`${input.key
                                 .replace(/([A-Z])/g, " $1")
-                                .replace(/^./, (str) => str.toUpperCase())}: ${input.value
-                                }`}
+                                .replace(/^./, (str) => str.toUpperCase())}: ${input.value}`}
                             />
                           </ListItem>
                         ))}

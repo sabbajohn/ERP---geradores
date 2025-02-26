@@ -43,27 +43,51 @@ const formatChecklistItem = (item) => {
 };
 
 // Função utilitária para converter uma URL para base64
-async function getBase64ImageFromUrl(url) {
+async function getBase64ImageFromUrl(url, maxWidth = 800, maxHeight = 600) {
   try {
+    // Busca a imagem e converte para blob
     const response = await fetch(url);
     if (!response.ok) throw new Error("Erro ao buscar a imagem");
-
     const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        console.log("Base64 da imagem:", reader.result); // Log do base64 aqui
-        console.log('apagar tudo a baixo')
-        resolve(reader.result);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
+
+    // Cria um objeto URL para o blob e uma nova imagem
+    const objectURL = URL.createObjectURL(blob);
+    const img = new Image();
+    img.src = objectURL;
+
+    // Aguarda a imagem carregar
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
     });
+
+    // Define as dimensões finais mantendo a proporção
+    let { width, height } = img;
+    if (width > maxWidth || height > maxHeight) {
+      const ratio = Math.min(maxWidth / width, maxHeight / height);
+      width = Math.floor(width * ratio);
+      height = Math.floor(height * ratio);
+    }
+
+    // Cria um canvas com as dimensões definidas e desenha a imagem nele
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, width, height);
+
+    // Converte o conteúdo do canvas para Base64 (nesse exemplo, converte para JPEG com qualidade 80%)
+    const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+
+    // Libera o objeto URL criado
+    URL.revokeObjectURL(objectURL);
+    return base64Image;
   } catch (error) {
-    console.error("Erro ao converter imagem para base64:", error);
+    console.error("Erro ao converter imagem para Base64:", error);
     return null;
   }
 }
+
 function Reports() {
   const [filters, setFilters] = useState({ technician: "", generator: "" });
   const [allReports, setAllReports] = useState([]);

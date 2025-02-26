@@ -130,7 +130,7 @@ const ServiceReport = ({ reportData = {} }) => {
         return isNaN(date.getTime()) ? "Data inválida" : format(date, "dd/MM/yyyy HH:mm");
     };
 
-    // Formata o checklist separando os itens
+    // Função auxiliar para formatar o checklist
     const formatChecklistText = (text) => {
         return text.split(", ").map((item) =>
             item
@@ -186,9 +186,7 @@ const ServiceReport = ({ reportData = {} }) => {
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Número de Série:</Text>
-                        <Text style={styles.value}>
-                            {report.generator?.serialNumber || "N/A"}
-                        </Text>
+                        <Text style={styles.value}>{report.generator?.serialNumber || "N/A"}</Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Localização:</Text>
@@ -296,7 +294,10 @@ const ServiceReport = ({ reportData = {} }) => {
                                 <View style={styles.signatureContainer}>
                                     <Text style={styles.signatureLabel}>Assinatura do Técnico</Text>
                                     <View style={styles.signatureBox}>
-                                        <Image style={styles.signature} src={report.technicianSignature} />
+                                        <Image
+                                            style={styles.signature}
+                                            source={{ uri: report.technicianSignature }}
+                                        />
                                     </View>
                                     <Text style={styles.signatureName}>
                                         {report.technician?.username || "N/A"}
@@ -309,7 +310,10 @@ const ServiceReport = ({ reportData = {} }) => {
                                 <View style={styles.signatureContainer}>
                                     <Text style={styles.signatureLabel}>Assinatura do Cliente</Text>
                                     <View style={styles.signatureBox}>
-                                        <Image style={styles.signature} src={report.customerSignature} />
+                                        <Image
+                                            style={styles.signature}
+                                            source={{ uri: report.customerSignature }}
+                                        />
                                     </View>
                                     <Text style={styles.signatureName}>
                                         {report.customer?.name || "N/A"}
@@ -326,7 +330,14 @@ const ServiceReport = ({ reportData = {} }) => {
                         <Text style={styles.sectionTitle}>Anexos</Text>
                         {report.attachments.map((attachment, index) => (
                             <View key={index} style={styles.attachment}>
-                                <Image style={styles.attachmentImage} src={attachment.fileUrl} />
+                                <Image
+                                    style={styles.attachmentImage}
+                                    source={{
+                                        uri: attachment.base64
+                                            ? attachment.base64
+                                            : attachment.fileUrl,
+                                    }}
+                                />
                                 <Text style={styles.attachmentCaption}>{attachment.fileName}</Text>
                             </View>
                         ))}
