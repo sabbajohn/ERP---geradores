@@ -11,7 +11,6 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  FaBolt,
   FaHome,
   FaUsers,
   FaCog,
@@ -51,11 +50,11 @@ function Sidebar({ onClose }) {
     <Box
       sx={{
         width: 250,
-        height: "100vh",
+        height: "100vh", // Altura total da tela
         display: "flex",
         flexDirection: "column",
         backgroundColor: "#1e1e2f", // Fundo escuro
-        color: "#fff", // Texto branco
+        color: "#fff",              // Texto branco
       }}
     >
       {/* Cabeçalho com logo */}
@@ -74,8 +73,8 @@ function Sidebar({ onClose }) {
         />
       </Box>
 
-      {/* Menu de navegação */}
-      <Box component="nav" sx={{ flex: 1 }}>
+      {/* Menu de navegação (com scroll) */}
+      <Box component="nav" sx={{ flex: 1, overflowY: "auto" }}>
         <List>
           <ListItem disablePadding>
             <ListItemButton
