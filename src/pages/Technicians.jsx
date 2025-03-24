@@ -21,8 +21,41 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import InputMask from "react-input-mask";
+import InputMask from "react-input-mask"; // Utilizado para telefone (máscara estática)
+import { IMaskInput } from "react-imask"; // Utilizado para CPF/CNPJ (máscara dinâmica)
 import api from "../services/api";
+
+// Componente customizado para integrar o IMask com o TextField do MUI
+const TextMaskCustom = React.forwardRef(function TextMaskCustom(props, ref) {
+    const { onChange, mask, ...other } = props;
+    return (
+        <IMaskInput
+            {...other}
+            mask={mask.mask ? mask.mask : mask}
+            dispatch={mask.dispatch}
+            unmask={false}
+            inputRef={ref}
+            onAccept={(value) =>
+                onChange({ target: { name: props.name, value } })
+            }
+            overwrite
+        />
+    );
+});
+
+// Máscara dinâmica para CPF/CNPJ
+const docMask = {
+    mask: [
+        { mask: "000.000.000-00" },   // CPF (11 dígitos)
+        { mask: "00.000.000/0000-00" }, // CNPJ (14 dígitos)
+    ],
+    dispatch: function (appended, dynamicMasked) {
+        const number = (dynamicMasked.value + appended).replace(/\D/g, "");
+        return number.length > 11
+            ? dynamicMasked.compiledMasks[1]
+            : dynamicMasked.compiledMasks[0];
+    },
+};
 
 function Technicians() {
     const [technicians, setTechnicians] = useState([]);
@@ -141,7 +174,7 @@ function Technicians() {
                     }
                 );
 
-                // Se a senha foi alterada, chama a função para atualizar a senha do usuário
+                // Se a senha foi alterada, atualiza a senha do usuário
                 if (formData.password) {
                     await api.post(
                         "/functions/updateTechnicianPassword",
@@ -183,7 +216,6 @@ function Technicians() {
     // Excluir Técnico
     const handleDelete = async (technicianId) => {
         if (!window.confirm("Tem certeza que deseja excluir este técnico?")) return;
-
         try {
             await api.post(
                 "/functions/softDeleteTechnician",
@@ -224,21 +256,11 @@ function Technicians() {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell>
-                                <strong>Nome</strong>
-                            </TableCell>
-                            <TableCell>
-                                <strong>Email</strong>
-                            </TableCell>
-                            <TableCell>
-                                <strong>Telefone</strong>
-                            </TableCell>
-                            <TableCell>
-                                <strong>CPF/CNPJ</strong>
-                            </TableCell>
-                            <TableCell align="center">
-                                <strong>Ações</strong>
-                            </TableCell>
+                            <TableCell><strong>Nome</strong></TableCell>
+                            <TableCell><strong>Email</strong></TableCell>
+                            <TableCell><strong>Telefone</strong></TableCell>
+                            <TableCell><strong>CPF/CNPJ</strong></TableCell>
+                            <TableCell align="center"><strong>Ações</strong></TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -305,23 +327,26 @@ function Technicians() {
                             />
                         )}
                     </InputMask>
-                    <InputMask
-                        mask="999.999.999-99"
+                    {/* Atualizando o campo CPF/CNPJ para usar react-imask com máscara dinâmica */}
+                    <TextField
+                        margin="dense"
+                        label="CPF/CNPJ"
+                        name="cpfCnpj"
+                        fullWidth
+                        variant="outlined"
+                        required
                         value={formData.cpfCnpj}
                         onChange={(e) =>
                             setFormData({ ...formData, cpfCnpj: e.target.value })
                         }
-                    >
-                        {(inputProps) => (
-                            <TextField
-                                {...inputProps}
-                                label="CPF/CNPJ"
-                                fullWidth
-                                margin="dense"
-                                required
-                            />
-                        )}
-                    </InputMask>
+                        InputProps={{
+                            inputComponent: TextMaskCustom,
+                            inputProps: {
+                                mask: docMask,
+                                name: "cpfCnpj",
+                            },
+                        }}
+                    />
                     <TextField
                         fullWidth
                         label="Nova Senha (Opcional)"

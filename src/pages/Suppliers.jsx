@@ -24,8 +24,40 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import InputMask from "react-input-mask";
+import { IMaskInput } from "react-imask";
 import api from "../services/api";
+
+// Componente customizado para integrar o IMask com o TextField do MUI
+const TextMaskCustom = React.forwardRef(function TextMaskCustom(props, ref) {
+    const { onChange, mask, ...other } = props;
+    return (
+        <IMaskInput
+            {...other}
+            mask={mask.mask ? mask.mask : mask}
+            dispatch={mask.dispatch}
+            unmask={false}
+            inputRef={ref}
+            onAccept={(value) =>
+                onChange({ target: { name: props.name, value } })
+            }
+            overwrite
+        />
+    );
+});
+
+// Máscara dinâmica para CPF/CNPJ
+const docMask = {
+    mask: [
+        { mask: "000.000.000-00" },           // CPF (11 dígitos)
+        { mask: "00.000.000/0000-00" }         // CNPJ (14 dígitos)
+    ],
+    dispatch: function (appended, dynamicMasked) {
+        const number = (dynamicMasked.value + appended).replace(/\D/g, "");
+        return number.length > 11
+            ? dynamicMasked.compiledMasks[1]
+            : dynamicMasked.compiledMasks[0];
+    },
+};
 
 function Suppliers() {
     const [suppliers, setSuppliers] = useState([]);
@@ -91,7 +123,6 @@ function Suppliers() {
 
     // Salvar (Adicionar ou Editar) Fornecedor
     const handleSave = async () => {
-        // Verificar se todos os campos estão preenchidos
         const { name, document, phone, email, address } = formData;
         if (!name.trim() || !document.trim() || !phone.trim() || !email.trim() || !address.trim()) {
             alert("Por favor, preencha todos os campos obrigatórios.");
@@ -129,7 +160,6 @@ function Suppliers() {
     // Excluir Fornecedor (soft delete)
     const handleDelete = async (supplierId) => {
         if (!window.confirm("Tem certeza que deseja excluir este fornecedor?")) return;
-
         try {
             await api.post(
                 "/functions/softDeleteSupplier",
@@ -174,7 +204,6 @@ function Suppliers() {
 
         const doc = new jsPDF();
         doc.text("Relatório de Fornecedores", 14, 10);
-
         doc.autoTable({
             startY: 20,
             head: [["Nome", "Telefone", "Email", "Endereço"]],
@@ -185,7 +214,6 @@ function Suppliers() {
                 supplier.address,
             ]),
         });
-
         doc.save("fornecedores.pdf");
     };
 
@@ -274,41 +302,33 @@ function Suppliers() {
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
 
-                    <InputMask
-                        mask={
-                            formData.document.replace(/\D/g, "").length > 11
-                                ? "99.999.999/9999-99"
-                                : "999.999.999-99"
-                        }
+                    {/* Campo CPF/CNPJ com máscara dinâmica usando react-imask */}
+                    <TextField
+                        margin="dense"
+                        label="CPF/CNPJ"
+                        name="document"
+                        required
+                        fullWidth
+                        variant="outlined"
                         value={formData.document}
                         onChange={(e) => setFormData({ ...formData, document: e.target.value })}
-                    >
-                        {(inputProps) => (
-                            <TextField
-                                {...inputProps}
-                                label="CPF/CNPJ"
-                                required
-                                fullWidth
-                                margin="dense"
-                            />
-                        )}
-                    </InputMask>
+                        InputProps={{
+                            inputComponent: TextMaskCustom,
+                            inputProps: {
+                                mask: docMask,
+                                name: "document",
+                            },
+                        }}
+                    />
 
-                    <InputMask
-                        mask="(99) 99999-9999"
+                    <TextField
+                        label="Telefone"
+                        required
+                        fullWidth
+                        margin="dense"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    >
-                        {(inputProps) => (
-                            <TextField
-                                {...inputProps}
-                                label="Telefone"
-                                required
-                                fullWidth
-                                margin="dense"
-                            />
-                        )}
-                    </InputMask>
+                    />
 
                     <TextField
                         label="E-mail"

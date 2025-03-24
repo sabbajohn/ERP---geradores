@@ -24,9 +24,40 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import InputMask from "react-input-mask";
+import { IMaskInput } from "react-imask";
 import api from "../services/api";
-import ClientModal from "../components/ClientModal";
+
+// Componente customizado para integrar o IMask com o TextField do MUI
+const TextMaskCustom = React.forwardRef(function TextMaskCustom(props, ref) {
+  const { onChange, mask, ...other } = props;
+  return (
+    <IMaskInput
+      {...other}
+      mask={mask.mask ? mask.mask : mask}
+      dispatch={mask.dispatch}
+      unmask={false}
+      inputRef={ref}
+      onAccept={(value) =>
+        onChange({ target: { name: props.name, value } })
+      }
+      overwrite
+    />
+  );
+});
+
+// Máscara dinâmica para CPF/CNPJ
+const docMask = {
+  mask: [
+    { mask: "000.000.000-00" },           // CPF (11 dígitos)
+    { mask: "00.000.000/0000-00" }         // CNPJ (14 dígitos)
+  ],
+  dispatch: function (appended, dynamicMasked) {
+    const number = (dynamicMasked.value + appended).replace(/\D/g, "");
+    return number.length > 11
+      ? dynamicMasked.compiledMasks[1]
+      : dynamicMasked.compiledMasks[0];
+  },
+};
 
 function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -51,10 +82,11 @@ function Customers() {
         "/functions/getAllCustomers",
         {},
         {
-          headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") },
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
         }
       );
-
       if (response.data.result) {
         setCustomers(response.data.result);
         setFilteredCustomers(response.data.result);
@@ -104,31 +136,45 @@ function Customers() {
         await api.post(
           "/functions/updateCustomer",
           { customerId: editingCustomer.objectId, ...formattedFormData },
-          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            },
+          }
         );
       } else {
         await api.post(
           "/functions/createCustomer",
           formattedFormData,
-          { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            },
+          }
         );
       }
       fetchCustomers();
       handleClose();
     } catch (error) {
-      console.error("Erro ao salvar cliente:", error.response?.data || error.message);
+      console.error(
+        "Erro ao salvar cliente:",
+        error.response?.data || error.message
+      );
     }
   };
 
   // Excluir Cliente
   const handleDelete = async (customerId) => {
     if (!window.confirm("Tem certeza que deseja excluir este cliente?")) return;
-
     try {
       await api.post(
         "/functions/softDeleteCustomer",
         { customerId },
-        { headers: { "X-Parse-Session-Token": localStorage.getItem("sessionToken") } }
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
       );
       fetchCustomers();
     } catch (error) {
@@ -143,10 +189,11 @@ function Customers() {
       setFilteredCustomers(customers);
       return;
     }
-    const filtered = customers.filter((customer) =>
-      customer.name?.toLowerCase().includes(query.toLowerCase()) ||
-      customer.email?.toLowerCase().includes(query.toLowerCase()) ||
-      customer.phone?.toLowerCase().includes(query.toLowerCase())
+    const filtered = customers.filter(
+      (customer) =>
+        customer.name?.toLowerCase().includes(query.toLowerCase()) ||
+        customer.email?.toLowerCase().includes(query.toLowerCase()) ||
+        customer.phone?.toLowerCase().includes(query.toLowerCase())
     );
     setFilteredCustomers(filtered);
     setCurrentPage(1);
@@ -164,10 +211,8 @@ function Customers() {
       alert("Nenhum cliente para exportar.");
       return;
     }
-
     const doc = new jsPDF();
     doc.text("Relatório de Clientes", 14, 10);
-
     doc.autoTable({
       startY: 20,
       head: [["Nome", "Telefone", "Email", "Endereço"]],
@@ -178,7 +223,6 @@ function Customers() {
         customer.address,
       ]),
     });
-
     doc.save("clientes.pdf");
   };
 
@@ -256,49 +300,58 @@ function Customers() {
             fullWidth
             margin="dense"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, name: e.target.value })
+            }
           />
 
-          {/* Máscara dinâmica para CPF/CNPJ */}
-          <InputMask
-            mask={
-              // Se o número de dígitos (sem formatação) for maior que 11, aplica máscara de CNPJ
-              formData.document.replace(/\D/g, "").length > 11
-                ? "99.999.999/9999-99"
-                : "999.999.999-99"
-            }
+          {/* Campo CPF/CNPJ com máscara dinâmica usando react-imask */}
+          <TextField
+            margin="dense"
+            label="CPF/CNPJ"
+            name="document"
+            fullWidth
+            variant="outlined"
             value={formData.document}
-            onChange={(e) => setFormData({ ...formData, document: e.target.value })}
-          >
-            {(inputProps) => (
-              <TextField {...inputProps} label="CPF/CNPJ" fullWidth margin="dense" />
-            )}
-          </InputMask>
+            onChange={(e) =>
+              setFormData({ ...formData, document: e.target.value })
+            }
+            InputProps={{
+              inputComponent: TextMaskCustom,
+              inputProps: {
+                mask: docMask,
+                name: "document",
+              },
+            }}
+          />
 
-          {/* Máscara para telefone com DDD */}
-          <InputMask
-            mask="(99) 99999-9999"
+          <TextField
+            label="Telefone"
+            fullWidth
+            margin="dense"
             value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          >
-            {(inputProps) => (
-              <TextField {...inputProps} label="Telefone" fullWidth margin="dense" />
-            )}
-          </InputMask>
+            onChange={(e) =>
+              setFormData({ ...formData, phone: e.target.value })
+            }
+          />
 
           <TextField
             label="E-mail"
             fullWidth
             margin="dense"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
           />
           <TextField
             label="Endereço"
             fullWidth
             margin="dense"
             value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, address: e.target.value })
+            }
           />
         </DialogContent>
         <DialogActions>
