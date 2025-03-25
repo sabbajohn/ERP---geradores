@@ -18,6 +18,7 @@ import {
   DialogTitle,
   TextField,
   Tooltip,
+  Pagination, // Importação do componente Pagination
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -204,6 +205,7 @@ function Customers() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
 
   // Exportar para PDF
   const exportToPDF = () => {
@@ -290,6 +292,18 @@ function Customers() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Componente de Paginação */}
+      {totalPages > 1 && (
+        <Box display="flex" justifyContent="center" mt={2}>
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={(event, page) => setCurrentPage(page)}
+            color="primary"
+          />
+        </Box>
+      )}
 
       {/* Modal para adicionar/editar clientes */}
       <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
