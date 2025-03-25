@@ -24,6 +24,7 @@ import {
   ListItemIcon,
   Tooltip,
   Paper as MuiPaper,
+  Pagination, // Importação do componente Pagination do MUI
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -44,7 +45,7 @@ const formatChecklistItem = (item) => {
 
 // Função utilitária para converter uma URL para base64
 async function getBase64ImageFromUrl(url, maxWidth = 800, maxHeight = 600) {
-  console.log('oi')
+  console.log("oi");
   try {
     // Busca a imagem e converte para blob
     const response = await fetch(url);
@@ -77,7 +78,7 @@ async function getBase64ImageFromUrl(url, maxWidth = 800, maxHeight = 600) {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(img, 0, 0, width, height);
 
-    // Converte o conteúdo do canvas para Base64 (nesse exemplo, converte para JPEG com qualidade 80%)
+    // Converte o conteúdo do canvas para Base64 (JPEG com qualidade 80%)
     const base64Image = canvas.toDataURL("image/jpeg", 0.8);
 
     // Libera o objeto URL criado
@@ -104,6 +105,10 @@ function Reports() {
   // Estados para PDF
   const [pdfReportData, setPdfReportData] = useState(null);
   const [showPdfDownloadLink, setShowPdfDownloadLink] = useState(false);
+
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadReports();
@@ -149,7 +154,15 @@ function Reports() {
       return techName.includes(lowerTech) && genSerial.includes(lowerGen);
     });
     setFilteredReports(temp);
+    setCurrentPage(1);
   };
+
+  // Cálculo da paginação
+  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  const paginatedReports = filteredReports.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Abre modal de detalhes do relatório
   const handleViewDetails = (rep) => {
@@ -241,7 +254,7 @@ function Reports() {
 
       console.log("Dados para PDF (com imagens base64):", reportData);
 
-      // Agora definimos o state para renderizar o PDFDownloadLink
+      // Define o state para renderizar o PDFDownloadLink
       setPdfReportData(reportData);
       setShowPdfDownloadLink(true);
     } catch (error) {
@@ -326,7 +339,7 @@ function Reports() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredReports.map((rep) => {
+            {paginatedReports.map((rep) => {
               const genSerial = rep.generatorId?.serialNumber || "Sem gerador";
               const techName = rep.technicianUser?.username || "Desconhecido";
               const iso = rep.createdAt?.iso || rep.createdAt;
@@ -379,6 +392,18 @@ function Reports() {
         </Table>
       </TableContainer>
 
+      {/* Componente de Paginação */}
+      {totalPages > 1 && (
+        <Box display="flex" justifyContent="center" mt={2}>
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={(event, page) => setCurrentPage(page)}
+            color="primary"
+          />
+        </Box>
+      )}
+
       {/* Modal de Detalhes do Relatório */}
       <Dialog
         open={openDetail}
@@ -405,8 +430,12 @@ function Reports() {
                   Ordem de Serviço Digital
                 </Typography>
                 <Typography variant="subtitle1">Energimaq</Typography>
-                <Typography variant="body2">Telefone: (91) 4042-2194</Typography>
-                <Typography variant="body2">CNPJ: 45.486.401/0001-31</Typography>
+                <Typography variant="body2">
+                  Telefone: (91) 4042-2194
+                </Typography>
+                <Typography variant="body2">
+                  CNPJ: 45.486.401/0001-31
+                </Typography>
                 <Typography variant="body2">
                   Email: servicosepecas@energimaq.com.br
                 </Typography>
@@ -418,7 +447,10 @@ function Reports() {
 
               {/* Cliente */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: "bold", mb: 1 }}
+                >
                   Informações do Cliente
                 </Typography>
                 <Typography>
@@ -443,7 +475,10 @@ function Reports() {
 
               {/* Gerador */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: "bold", mb: 1 }}
+                >
                   Informações do Gerador
                 </Typography>
                 <Typography>
@@ -458,7 +493,10 @@ function Reports() {
 
               {/* Ordem de Serviço */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: "bold", mb: 1 }}
+                >
                   Detalhes da Ordem de Serviço
                 </Typography>
                 <Grid container spacing={2}>
@@ -489,8 +527,9 @@ function Reports() {
                       <strong>Horímetro:</strong>{" "}
                       {selectedReport.horimetro ||
                         (selectedReport.checklistInputs &&
-                          selectedReport.checklistInputs.find((input) => input.key === "horimetro")
-                            ?.value) ||
+                          selectedReport.checklistInputs.find(
+                            (input) => input.key === "horimetro"
+                          )?.value) ||
                         "N/A"}
                     </Typography>
                   </Grid>
@@ -499,11 +538,15 @@ function Reports() {
 
               {/* Relato */}
               <MuiPaper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: "bold", mb: 1 }}
+                >
                   Relato de Execução
                 </Typography>
                 <Typography>
-                  {selectedReport.reportDescription || "Sem relato de execução."}
+                  {selectedReport.reportDescription ||
+                    "Sem relato de execução."}
                 </Typography>
               </MuiPaper>
 
@@ -519,26 +562,35 @@ function Reports() {
               </MuiPaper>
 
               {/* Peças */}
-              {selectedReport.partsUsed && selectedReport.partsUsed.length > 0 && (
-                <MuiPaper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
-                    Peças Trocadas
-                  </Typography>
-                  <List>
-                    {selectedReport.partsUsed.map((p, idx) => (
-                      <ListItem key={idx} divider>
-                        <ListItemText primary={`${p.itemName} (x${p.quantity})`} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </MuiPaper>
-              )}
+              {selectedReport.partsUsed &&
+                selectedReport.partsUsed.length > 0 && (
+                  <MuiPaper sx={{ p: 2 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: "bold", mb: 1 }}
+                    >
+                      Peças Trocadas
+                    </Typography>
+                    <List>
+                      {selectedReport.partsUsed.map((p, idx) => (
+                        <ListItem key={idx} divider>
+                          <ListItemText
+                            primary={`${p.itemName} (x${p.quantity})`}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </MuiPaper>
+                )}
 
               {/* Assinaturas */}
               {selectedReport.technicianSignature &&
                 selectedReport.technicianSignature !== "" && (
                   <MuiPaper sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: "bold", mb: 1 }}
+                    >
                       Assinatura do Técnico
                     </Typography>
                     <img
@@ -556,7 +608,10 @@ function Reports() {
               {selectedReport.customerSignature &&
                 selectedReport.customerSignature !== "" && (
                   <MuiPaper sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: "bold", mb: 1 }}
+                    >
                       Assinatura do Cliente
                     </Typography>
                     <img
@@ -574,7 +629,10 @@ function Reports() {
               {/* Anexos */}
               {attachments.length > 0 && (
                 <MuiPaper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: "bold", mb: 1 }}
+                  >
                     Fotos
                   </Typography>
                   {attachments.map((att, idx) => (

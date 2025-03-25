@@ -22,6 +22,7 @@ import {
   MenuItem,
   Snackbar,
   Alert,
+  Pagination, // Importação do componente Pagination do MUI
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -30,14 +31,12 @@ import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import { Link } from "react-router-dom";
 import api from "../services/api";
-
 import GeneratorModal from "../components/GeneratorModal";
 
 function Generators() {
   const [generators, setGenerators] = useState([]);
   const [customersMap, setCustomersMap] = useState({});
   const [clients, setClients] = useState([]);
-
   const [inventoryItems, setInventoryItems] = useState([]);
 
   // Estados do modal principal
@@ -71,6 +70,10 @@ function Generators() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
+  // Estado para paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   // ----------------------------------------------------------------------------
   // HELPERS
   // ----------------------------------------------------------------------------
@@ -92,11 +95,15 @@ function Generators() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await api.post("/functions/getAllCustomers", {}, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      const response = await api.post(
+        "/functions/getAllCustomers",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
       if (response.data.result) {
         const cMap = {};
         response.data.result.forEach((cust) => {
@@ -111,11 +118,15 @@ function Generators() {
 
   const fetchGenerators = async () => {
     try {
-      const response = await api.post("/functions/getAllGenerators", {}, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      const response = await api.post(
+        "/functions/getAllGenerators",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
       if (response.data.result) {
         setGenerators(response.data.result);
       }
@@ -126,11 +137,15 @@ function Generators() {
 
   const fetchClients = async () => {
     try {
-      const response = await api.post("/functions/getAllCustomers", {}, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      const response = await api.post(
+        "/functions/getAllCustomers",
+        {},
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
       if (response.data.result) {
         setClients(response.data.result);
       }
@@ -142,9 +157,11 @@ function Generators() {
   const fetchInventoryItems = async () => {
     try {
       const sessionToken = localStorage.getItem("sessionToken") || "";
-      const res = await api.post("/functions/getAllInventoryItems", {}, {
-        headers: { "X-Parse-Session-Token": sessionToken },
-      });
+      const res = await api.post(
+        "/functions/getAllInventoryItems",
+        {},
+        { headers: { "X-Parse-Session-Token": sessionToken } }
+      );
       if (res.data.result) {
         setInventoryItems(res.data.result);
       }
@@ -180,23 +197,19 @@ function Generators() {
 
   const handleOpenEdit = async (generatorId) => {
     try {
-      // Faz a busca no backend para garantir que teremos todos os dados
-      const resp = await api.post("/functions/getGeneratorById", { generatorId }, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      const resp = await api.post(
+        "/functions/getGeneratorById",
+        { generatorId },
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
       const gen = resp.data.result;
-
       setEditingGenerator(gen);
 
-      // Ajustar o horímetro (caso venha de outro campo, acrescente aqui)
-      // A API no seu exemplo não retornou horimetroAtual explicitamente.
-      // Se você tiver esse campo, use: gen.horimetroAtual
-      // Senão, verifique se ele está em outro lugar ou acrescente no backend.
-      // Exemplo real, se for `gen.horimetroAtual`, ficaria assim:
       const horimetro = gen.horimetroAtual ? String(gen.horimetroAtual) : "";
-
       setNewGenerator({
         name: gen.name || "",
         serialNumber: gen.serialNumber || "",
@@ -212,14 +225,9 @@ function Generators() {
         modelo: gen.modelo || "",
         fabricante: gen.fabricante || "",
         potencia: gen.potencia || "",
-        // Se o objeto retornar `customer` => "objectId", use:
         customerId: gen.customer ? gen.customer.objectId : "",
       });
-
-      // Extra fields
       setExtraFields(gen.extraFields || []);
-
-      // Abre o modal
       setOpen(true);
     } catch (error) {
       console.error("Erro ao buscar gerador por ID:", error.message);
@@ -233,7 +241,6 @@ function Generators() {
   // ----------------------------------------------------------------------------
   const handleSave = async () => {
     try {
-      // Validação simples
       if (newGenerator.status === "Vendido" && !newGenerator.customerId) {
         alert("É obrigatório informar o cliente ao vender o gerador.");
         return;
@@ -242,14 +249,18 @@ function Generators() {
       const payload = { ...newGenerator, extraFields };
 
       if (editingGenerator) {
-        await api.post("/functions/updateGenerator", {
-          generatorId: editingGenerator.objectId,
-          ...payload,
-        }, {
-          headers: {
-            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+        await api.post(
+          "/functions/updateGenerator",
+          {
+            generatorId: editingGenerator.objectId,
+            ...payload,
           },
-        });
+          {
+            headers: {
+              "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+            },
+          }
+        );
       } else {
         await api.post("/functions/createGenerator", payload, {
           headers: {
@@ -258,11 +269,9 @@ function Generators() {
         });
       }
 
-      // Recarrega lista
       fetchGenerators();
       handleClose();
 
-      // Exibe a mensagem de agendamento de manutenção somente se for novo
       if (!editingGenerator && newGenerator.deliveryDate) {
         const deliveryDate = new Date(newGenerator.deliveryDate + "T12:00:00");
         const threeMonths = new Date(deliveryDate);
@@ -281,7 +290,10 @@ function Generators() {
         setSnackbarOpen(true);
       }
     } catch (error) {
-      console.error("Erro ao salvar gerador:", error.response?.data || error.message);
+      console.error(
+        "Erro ao salvar gerador:",
+        error.response?.data || error.message
+      );
     }
   };
 
@@ -291,11 +303,15 @@ function Generators() {
   const handleDelete = async (generatorId) => {
     if (!window.confirm("Tem certeza que deseja excluir este gerador?")) return;
     try {
-      await api.post("/functions/softDeleteGenerator", { generatorId }, {
-        headers: {
-          "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-        },
-      });
+      await api.post(
+        "/functions/softDeleteGenerator",
+        { generatorId },
+        {
+          headers: {
+            "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
+          },
+        }
+      );
       fetchGenerators();
     } catch (error) {
       console.error("Erro ao excluir gerador:", error.message);
@@ -422,7 +438,7 @@ function Generators() {
   };
 
   // ----------------------------------------------------------------------------
-  // FILTRO DE BUSCA
+  // FILTRO DE BUSCA E PAGINAÇÃO
   // ----------------------------------------------------------------------------
   const filteredGenerators = generators.filter((g) => {
     const lowerSearch = searchTerm.toLowerCase();
@@ -433,6 +449,19 @@ function Generators() {
       customerName.includes(lowerSearch)
     );
   });
+
+  // Reinicia a página para 1 sempre que a busca mudar
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  // Cálculo da paginação
+  const paginatedGenerators = filteredGenerators.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredGenerators.length / itemsPerPage);
 
   // ----------------------------------------------------------------------------
   // RENDER
@@ -460,7 +489,7 @@ function Generators() {
           size="small"
           fullWidth
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleSearchChange}
         />
       </Box>
 
@@ -480,7 +509,7 @@ function Generators() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredGenerators.map((generator) => (
+            {paginatedGenerators.map((generator) => (
               <TableRow key={generator.objectId}>
                 <TableCell>
                   <Link
@@ -571,6 +600,18 @@ function Generators() {
         </Table>
       </TableContainer>
 
+      {/* Componente de Paginação */}
+      {totalPages > 1 && (
+        <Box display="flex" justifyContent="center" mt={2}>
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={(event, page) => setCurrentPage(page)}
+            color="primary"
+          />
+        </Box>
+      )}
+
       {/* Modal de Gerador */}
       <GeneratorModal
         open={open}
@@ -603,12 +644,18 @@ function Generators() {
       </Snackbar>
 
       {/* Modal de Peças de Desgaste */}
-      <Dialog open={openPartsModal} onClose={handleCloseParts} maxWidth="sm" fullWidth>
+      <Dialog
+        open={openPartsModal}
+        onClose={handleCloseParts}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Peças de Desgaste</DialogTitle>
         <DialogContent>
           {partsGenerator && (
             <Typography variant="subtitle1" sx={{ mb: 2 }}>
-              Gerador: <strong>{partsGenerator.name}</strong> - Serial: <strong>{partsGenerator.serialNumber}</strong>
+              Gerador: <strong>{partsGenerator.name}</strong> - Serial:{" "}
+              <strong>{partsGenerator.serialNumber}</strong>
             </Typography>
           )}
           {generatorParts.map((part) => (
@@ -618,14 +665,17 @@ function Generators() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                mb: 1
+                mb: 1,
               }}
             >
               <Typography>
                 <strong>{part.partName}</strong> : Intervalo: {part.intervalHours}h | Horas Usadas:{" "}
                 {part.currentHours || 0}
               </Typography>
-              <IconButton color="error" onClick={() => handleDeleteGeneratorPart(part.objectId)}>
+              <IconButton
+                color="error"
+                onClick={() => handleDeleteGeneratorPart(part.objectId)}
+              >
                 <DeleteIcon />
               </IconButton>
             </Box>
@@ -635,7 +685,7 @@ function Generators() {
               mt: 2,
               p: 2,
               border: "1px solid #ddd",
-              borderRadius: "4px"
+              borderRadius: "4px",
             }}
           >
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -651,7 +701,7 @@ function Generators() {
               onChange={(e) =>
                 setNewPartData({
                   ...newPartData,
-                  inventoryItemId: e.target.value
+                  inventoryItemId: e.target.value,
                 })
               }
             >
@@ -673,7 +723,7 @@ function Generators() {
               onChange={(e) =>
                 setNewPartData({
                   ...newPartData,
-                  intervalHours: e.target.value
+                  intervalHours: e.target.value,
                 })
               }
             />

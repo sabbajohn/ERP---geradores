@@ -19,6 +19,7 @@ import {
   DialogTitle,
   Chip,
   Tooltip,
+  Pagination, // Importação do componente de paginação
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -39,8 +40,12 @@ function Maintenance() {
     startTime: "",
     endTime: "",
     status: "Agendada",
-    description: "", // <-- Campo para a descrição
+    description: "",
   });
+
+  // Estados de paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Converte "HH:MM" em minutos (para comparação de horários)
   const timeStringToMinutes = (timeStr) => {
@@ -57,14 +62,14 @@ function Maintenance() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          }
+          },
         }
       );
 
       if (response.data.result) {
         const formatted = response.data.result.map((m) => {
           const isoString = m.maintenanceDate?.iso || "";
-          const justDate = isoString.split("T")[0]; // ex: "2025-02-21"
+          const justDate = isoString.split("T")[0];
           return {
             objectId: m.objectId,
             generatorId: m.generatorId?.objectId || "",
@@ -76,7 +81,7 @@ function Maintenance() {
             startTime: m.startTime || "",
             endTime: m.endTime || "",
             status: m.status,
-            description: m.description || "", // <-- Capturando a descrição vinda do back
+            description: m.description || "",
           };
         });
         setMaintenances(formatted);
@@ -95,7 +100,7 @@ function Maintenance() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          }
+          },
         }
       );
 
@@ -116,7 +121,7 @@ function Maintenance() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          }
+          },
         }
       );
 
@@ -139,7 +144,6 @@ function Maintenance() {
   const handleOpen = (maintenance = null) => {
     if (maintenance) {
       console.log("Editando manutenção:", maintenance);
-
       setEditingMaintenance(maintenance);
       setFormData({
         generatorId: maintenance.generatorId || "",
@@ -189,7 +193,7 @@ function Maintenance() {
         (m) =>
           m.technicianId === formData.technicianId &&
           m.maintenanceDate === formData.maintenanceDate &&
-          m.objectId !== editingMaintenance?.objectId // descarta a que está sendo editada
+          m.objectId !== editingMaintenance?.objectId
       );
       for (const m of sameDay) {
         if (m.status === "Concluída" || m.status === "Cancelada") continue;
@@ -220,7 +224,7 @@ function Maintenance() {
         startTime: formData.startTime,
         endTime: formData.endTime,
         status: formData.status,
-        description: formData.description, // <-- Incluindo a descrição no payload
+        description: formData.description,
       };
 
       console.log("Dados da manutenção para salvar:", {
@@ -231,7 +235,6 @@ function Maintenance() {
       let newMaintenanceId = null;
 
       if (editingMaintenance) {
-        // Atualiza manutenção existente
         await api.post(
           "/functions/updateMaintenance",
           {
@@ -241,23 +244,21 @@ function Maintenance() {
           {
             headers: {
               "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-            }
+            },
           }
         );
       } else {
-        // Cria uma nova manutenção
         const respCreate = await api.post(
           "/functions/createMaintenance",
           maintenancePayload,
           {
             headers: {
               "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-            }
+            },
           }
         );
         newMaintenanceId = respCreate.data?.result?.objectId;
 
-        // Exemplo de criar automaticamente uma OS ao criar a manutenção
         if (newMaintenanceId) {
           await api.post(
             "/functions/createOrder",
@@ -284,13 +285,12 @@ function Maintenance() {
             {
               headers: {
                 "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-              }
+              },
             }
           );
         }
       }
 
-      // Atualiza a tabela
       fetchMaintenances();
       handleClose();
     } catch (error) {
@@ -308,7 +308,7 @@ function Maintenance() {
         {
           headers: {
             "X-Parse-Session-Token": localStorage.getItem("sessionToken"),
-          }
+          },
         }
       );
       fetchMaintenances();
@@ -316,6 +316,13 @@ function Maintenance() {
       console.error("Erro ao deletar manutenção:", error.message);
     }
   };
+
+  // Cálculo da paginação
+  const totalPages = Math.ceil(maintenances.length / itemsPerPage);
+  const paginatedMaintenances = maintenances.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <Container maxWidth="lg">
@@ -340,15 +347,13 @@ function Maintenance() {
               <TableCell><strong>Técnico</strong></TableCell>
               <TableCell><strong>Data</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
-              {/* Nova coluna para exibir a descrição, se desejar */}
               <TableCell><strong>Descrição</strong></TableCell>
-
               <TableCell align="center"><strong>Ações</strong></TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {maintenances.map((m) => (
+            {paginatedMaintenances.map((m) => (
               <TableRow key={m.objectId}>
                 <TableCell>{m.generatorName}</TableCell>
                 <TableCell>{m.clientName}</TableCell>
@@ -380,9 +385,7 @@ function Maintenance() {
                     }
                   />
                 </TableCell>
-                {/* Exibe a descrição na tabela */}
                 <TableCell>{m.description}</TableCell>
-
                 <TableCell align="center">
                   <IconButton onClick={() => handleOpen(m)}>
                     <EditIcon />
@@ -397,6 +400,18 @@ function Maintenance() {
         </Table>
       </TableContainer>
 
+      {/* Componente de Paginação */}
+      {totalPages > 1 && (
+        <Box display="flex" justifyContent="center" mt={2}>
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={(event, page) => setCurrentPage(page)}
+            color="primary"
+          />
+        </Box>
+      )}
+
       {/* Dialog de criação/edição de manutenção */}
       <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
         <DialogTitle>
@@ -408,7 +423,9 @@ function Maintenance() {
             select
             label="Gerador"
             value={formData.generatorId}
-            onChange={(e) => setFormData({ ...formData, generatorId: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, generatorId: e.target.value })
+            }
             margin="dense"
             InputLabelProps={{ shrink: true }}
             SelectProps={{ native: true }}
@@ -426,7 +443,9 @@ function Maintenance() {
             select
             label="Técnico"
             value={formData.technicianId}
-            onChange={(e) => setFormData({ ...formData, technicianId: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, technicianId: e.target.value })
+            }
             margin="dense"
             InputLabelProps={{ shrink: true }}
             SelectProps={{ native: true }}
@@ -445,7 +464,9 @@ function Maintenance() {
             type="date"
             InputLabelProps={{ shrink: true }}
             value={formData.maintenanceDate}
-            onChange={(e) => setFormData({ ...formData, maintenanceDate: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, maintenanceDate: e.target.value })
+            }
             margin="dense"
           />
 
@@ -455,7 +476,9 @@ function Maintenance() {
             type="time"
             InputLabelProps={{ shrink: true }}
             value={formData.startTime}
-            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, startTime: e.target.value })
+            }
             margin="dense"
           />
 
@@ -465,7 +488,9 @@ function Maintenance() {
             type="time"
             InputLabelProps={{ shrink: true }}
             value={formData.endTime}
-            onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, endTime: e.target.value })
+            }
             margin="dense"
           />
 
@@ -474,7 +499,9 @@ function Maintenance() {
             select
             label="Status"
             value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, status: e.target.value })
+            }
             margin="dense"
             SelectProps={{ native: true }}
           >
@@ -484,7 +511,6 @@ function Maintenance() {
             <option value="Cancelada">Cancelada</option>
           </TextField>
 
-          {/* Novo campo de descrição, multiline para facilitar */}
           <TextField
             fullWidth
             label="Descrição"
@@ -493,7 +519,9 @@ function Maintenance() {
             rows={3}
             margin="dense"
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
           />
         </DialogContent>
 

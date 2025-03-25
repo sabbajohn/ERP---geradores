@@ -17,12 +17,14 @@ import {
     DialogContent,
     DialogTitle,
     Alert,
+    Pagination, // Importação do componente Pagination
+    Tooltip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import InputMask from "react-input-mask"; // Utilizado para telefone (máscara estática)
-import { IMaskInput } from "react-imask"; // Utilizado para CPF/CNPJ (máscara dinâmica)
+import InputMask from "react-input-mask";
+import { IMaskInput } from "react-imask";
 import api from "../services/api";
 
 // Componente customizado para integrar o IMask com o TextField do MUI
@@ -72,6 +74,10 @@ function Technicians() {
     const [searchQuery, setSearchQuery] = useState("");
     const [filteredTechnicians, setFilteredTechnicians] = useState([]);
 
+    // Estado de paginação
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
     // Buscar técnicos do backend
     const fetchTechnicians = async () => {
         try {
@@ -110,7 +116,16 @@ function Technicians() {
                 )
             );
         }
+        // Reinicia a página sempre que a busca for atualizada
+        setCurrentPage(1);
     }, [searchQuery, technicians]);
+
+    // Cálculo da paginação
+    const totalPages = Math.ceil(filteredTechnicians.length / itemsPerPage);
+    const paginatedTechnicians = filteredTechnicians.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     // Abrir modal para adicionar/editar técnico
     const handleOpen = (technician = null) => {
@@ -145,7 +160,6 @@ function Technicians() {
 
     // Salvar (Adicionar ou Editar) Técnico
     const handleSave = async () => {
-        // Verificação dos campos obrigatórios
         if (
             !formData.name.trim() ||
             !formData.email.trim() ||
@@ -174,7 +188,6 @@ function Technicians() {
                     }
                 );
 
-                // Se a senha foi alterada, atualiza a senha do usuário
                 if (formData.password) {
                     await api.post(
                         "/functions/updateTechnicianPassword",
@@ -200,7 +213,6 @@ function Technicians() {
                     }
                 );
 
-                // Se um usuário foi criado, exibir credenciais geradas
                 if (response.data.result && response.data.result.credentials) {
                     setCredentials(response.data.result.credentials);
                 }
@@ -234,7 +246,9 @@ function Technicians() {
 
     return (
         <Container maxWidth="lg">
-            <Typography variant="h4">Técnicos</Typography>
+            <Typography variant="h4" sx={{ mb: 2 }}>
+                Técnicos
+            </Typography>
             <TextField
                 fullWidth
                 label="Pesquisar Técnico (Nome ou Email)"
@@ -264,27 +278,47 @@ function Technicians() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filteredTechnicians.map((tech) => (
-                            <TableRow key={tech.objectId}>
-                                <TableCell>{tech.name}</TableCell>
-                                <TableCell>{tech.email}</TableCell>
-                                <TableCell>{tech.phone}</TableCell>
-                                <TableCell>{tech.cpfCnpj}</TableCell>
-                                <TableCell align="center">
-                                    <IconButton onClick={() => handleOpen(tech)}>
-                                        <EditIcon />
-                                    </IconButton>
-                                    <IconButton onClick={() => handleDelete(tech.objectId)}>
-                                        <DeleteIcon />
-                                    </IconButton>
+                        {paginatedTechnicians.length > 0 ? (
+                            paginatedTechnicians.map((tech) => (
+                                <TableRow key={tech.objectId}>
+                                    <TableCell>{tech.name}</TableCell>
+                                    <TableCell>{tech.email}</TableCell>
+                                    <TableCell>{tech.phone}</TableCell>
+                                    <TableCell>{tech.cpfCnpj}</TableCell>
+                                    <TableCell align="center">
+                                        <IconButton onClick={() => handleOpen(tech)}>
+                                            <EditIcon />
+                                        </IconButton>
+                                        <IconButton onClick={() => handleDelete(tech.objectId)}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={5} align="center">
+                                    Nenhum técnico encontrado.
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>
 
-            {/* Modal de criação/edição */}
+            {/* Componente de Paginação */}
+            {totalPages > 1 && (
+                <Box display="flex" justifyContent="center" mt={2}>
+                    <Pagination
+                        count={totalPages}
+                        page={currentPage}
+                        onChange={(event, page) => setCurrentPage(page)}
+                        color="primary"
+                    />
+                </Box>
+            )}
+
+            {/* Modal para adicionar/editar técnico */}
             <Dialog open={open} onClose={handleClose}>
                 <DialogTitle>
                     {editingTechnician ? "Editar Técnico" : "Novo Técnico"}
@@ -327,7 +361,6 @@ function Technicians() {
                             />
                         )}
                     </InputMask>
-                    {/* Atualizando o campo CPF/CNPJ para usar react-imask com máscara dinâmica */}
                     <TextField
                         margin="dense"
                         label="CPF/CNPJ"

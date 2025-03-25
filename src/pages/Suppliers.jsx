@@ -18,6 +18,7 @@ import {
     DialogTitle,
     TextField,
     Tooltip,
+    Pagination, // Importação do componente Pagination do MUI
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -48,8 +49,8 @@ const TextMaskCustom = React.forwardRef(function TextMaskCustom(props, ref) {
 // Máscara dinâmica para CPF/CNPJ
 const docMask = {
     mask: [
-        { mask: "000.000.000-00" },           // CPF (11 dígitos)
-        { mask: "00.000.000/0000-00" }         // CNPJ (14 dígitos)
+        { mask: "000.000.000-00" }, // CPF (11 dígitos)
+        { mask: "00.000.000/0000-00" } // CNPJ (14 dígitos)
     ],
     dispatch: function (appended, dynamicMasked) {
         const number = (dynamicMasked.value + appended).replace(/\D/g, "");
@@ -129,7 +130,7 @@ function Suppliers() {
             return;
         }
 
-        // Remove qualquer caractere não numérico de document e phone
+        // Remove caracteres não numéricos de document e phone
         const formattedFormData = {
             ...formData,
             document: formData.document.replace(/\D/g, ""),
@@ -194,6 +195,7 @@ function Suppliers() {
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+    const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
 
     // Exportar para PDF
     const exportToPDF = () => {
@@ -286,6 +288,18 @@ function Suppliers() {
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* Componente de Paginação */}
+            {totalPages > 1 && (
+                <Box display="flex" justifyContent="center" mt={2}>
+                    <Pagination
+                        count={totalPages}
+                        page={currentPage}
+                        onChange={(event, page) => setCurrentPage(page)}
+                        color="primary"
+                    />
+                </Box>
+            )}
 
             {/* Modal para adicionar/editar fornecedor */}
             <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
