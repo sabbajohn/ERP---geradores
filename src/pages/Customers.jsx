@@ -72,6 +72,20 @@ const phoneMask = {
   },
 };
 
+// Função para formatar telefone na exibição (sem precisar re-editar)
+function formatPhone(phone) {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+
+  // Se tiver até 10 dígitos, formata como fixo
+  if (digits.length <= 10) {
+    return digits.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  } else {
+    // Senão, formata como celular
+    return digits.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  }
+}
+
 function Customers() {
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
@@ -264,12 +278,10 @@ function Customers() {
       head: [["Nome", "Telefone", "Email", "Endereço"]],
       body: customers.map((customer) => [
         customer.name,
-        customer.phone,
+        // Formatamos o telefone na hora de exportar também
+        formatPhone(customer.phone),
         customer.email,
-        // Combina address, bairro e cidade para exibir
-        [customer.address, customer.bairro, customer.cidade]
-          .filter(Boolean)
-          .join(", "),
+        [customer.address, customer.bairro, customer.cidade].filter(Boolean).join(", "),
       ]),
     });
     doc.save("clientes.pdf");
@@ -331,7 +343,8 @@ function Customers() {
                   >
                     {customer.name}
                   </TableCell>
-                  <TableCell>{customer.phone}</TableCell>
+                  {/* Exibe o telefone formatado */}
+                  <TableCell>{formatPhone(customer.phone)}</TableCell>
                   <TableCell>{customer.email}</TableCell>
                   {/* Combina address, bairro e cidade em uma única exibição */}
                   <TableCell>
