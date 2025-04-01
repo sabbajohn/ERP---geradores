@@ -3,10 +3,11 @@ import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { IconButton, Drawer, useMediaQuery } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 
-// Removido: import CalendarSidebar
-import Sidebar from "./components/Sidebar";
+// Se você ainda não tiver o componente, importe:
+import CustomerDetails from "./pages/CustomerDetails";
 
-// Importa todas as suas páginas
+// Outros imports
+import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Generators from "./pages/Generators";
@@ -26,8 +27,6 @@ import ChecklistLocacao from "./pages/ChecklistLocacao";
 import ChecklistsList from "./pages/ChecklistsList";
 import GeneratorDetails from "./pages/GeneratorDetails";
 import Suppliers from "./pages/Suppliers";
-
-// Importa o novo Dashboard de relatórios agregados
 import ReportsDashboard from "./pages/ReportsDashboard";
 
 // Rota protegida
@@ -49,6 +48,7 @@ function AppContent() {
   const handleToggleDrawer = () => setDrawerOpen(!drawerOpen);
 
   // Rotas onde a Sidebar deve aparecer
+  // Inclui "/customers" para que funcione inclusive em rotas como "/customers/:id"
   const showSidebarPaths = [
     "/dashboard",
     "/customers",
@@ -67,18 +67,17 @@ function AppContent() {
     "/reports-dashboard",
   ];
 
+  // Exibe a sidebar se a URL atual começar com algum dos caminhos acima
   const showSidebar = showSidebarPaths.some((path) =>
     location.pathname.startsWith(path)
   );
 
   return (
     <div className={`app-container ${showSidebar ? "" : "no-sidebar"}`}>
-      {/* Renderiza a Sidebar fixa para telas grandes, apenas se for admin */}
-      {showSidebar && isAdmin && !isMobile && (
-        <Sidebar />
-      )}
+      {/* Renderiza a Sidebar fixa para telas grandes, se for admin e a rota solicitar */}
+      {showSidebar && isAdmin && !isMobile && <Sidebar />}
 
-      {/* Em mobile, exibe um botão hamburger se for admin e a sidebar estiver fechada */}
+      {/* Em mobile, exibe um botão hamburger para abrir Drawer se for admin */}
       {showSidebar && isAdmin && isMobile && !drawerOpen && (
         <IconButton
           onClick={handleToggleDrawer}
@@ -96,7 +95,7 @@ function AppContent() {
         </IconButton>
       )}
 
-      {/* Drawer para mobile, apenas se for admin */}
+      {/* Drawer para mobile */}
       {showSidebar && isAdmin && (
         <Drawer
           open={drawerOpen}
@@ -137,6 +136,16 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* NOVA ROTA: Detalhes do Cliente */}
+          <Route
+            path="/customers/:id"
+            element={
+              <ProtectedRoute>
+                <CustomerDetails />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/generators"
             element={
